@@ -1,0 +1,622 @@
+
+
+--- Page 1 ---
+Real-Time Gait Adaptation for Quadrupeds using Model Predictive
+Control and Reinforcement Learning
+Prakrut Kotecha∗1, Ganga Nair B ∗1, Shishir Kolathaya 2
+Abstract— Model-free reinforcement learning (RL) has en-
+abled adaptable and agile quadruped locomotion; however, poli-
+cies often converge to a single gait, leading to suboptimal perfor-
+mance. Traditionally, Model Predictive Control (MPC) has been
+extensively used to obtain task-specific optimal policies but lacks
+the ability to adapt to varying environments. To address these
+limitations, we propose an optimization framework for real-time
+gait adaptation in a continuous gait space, combining the Model
+Predictive Path Integral (MPPI) algorithm with a Dreamer
+module to produce adaptive and optimal policies for quadruped
+locomotion. At each time step, MPPI jointly optimizes the
+actions and gait variables using a learned Dreamer reward
+that promotes velocity tracking, energy efficiency, stability, and
+smooth transitions, while penalizing abrupt gait changes. A
+learned value function is incorporated as terminal reward,
+extending the formulation to an infinite-horizon planner. We
+evaluate our framework in simulation on the Unitree Go1,
+demonstrating an average reduction of up to 36.48% in energy
+consumption across varying target speeds, while maintaining
+accurate tracking and adaptive, task-appropriate gaits.
+Keywords:Planning, Reinforcement Learning,
+Quadruped
+I. INTRODUCTION
+In nature, animals instinctively transition between
+gaits—such as walking, trotting, and galloping—based on
+environmental context and task demands. This behavior is
+often attributed to principles of energy minimization [1],
+dynamic stability [2], and robustness to perturbations [3].
+Quadrupedal robots have achieved remarkable progress in
+replicating the agility and versatility of animals, including
+dynamic motions like jumping or parkour [4]. However, most
+research efforts for multi-terrain locomotion have resulted
+in singular gait policies—typically trotting or walking, or
+in diverse but preprogrammed or commanded behaviors.
+Therefore, developing strategies for adaptive gait selection
+and seamless transitions between gaits represents a natural
+and essential next step in advancing quadrupedal locomotion.
+Traditionally, Model Predictive Control (MPC) has been
+used to generate complex, dynamically consistent mo-
+tion [5]–[7]. These approaches typically assume fixed
+gait parameters—such as contact sequences or timing off-
+sets—defineda priori. This assumption limits flexibility dur-
+ing deployment, particularly under changing task demands or
+varying terrains. Moreover, MPC requires accurate dynamics
+∗ Equal Contribution. Decided by cycle race
+1G. Nair, P. Kotecha, are with the Robert Bosch Center for Cyber-
+Physical Systems, Indian Institute of Science, Bengaluru.
+2S. Kolathaya is with the Robert Bosch Center for Cyber-Physical
+Systems and the Department of Computer Science & Automation, Indian
+Institute of Science, Bengaluru.
+This project is funded by ARTPARK
+Email: stochlab@iisc.ac.in, Website: link
+Fig. 1. Conventional approaches (left) rely on discrete gait switching
+with predefined libraries. Our framework (right) performs joint optimization
+over actions and continuous gait parameters using learned dynamics and a
+reward-based planner.
+models and can be computationally demanding, making it
+less suited for online adaptation in complex environments.
+To overcome these modeling and adaptability limitations,
+Reinforcement Learning (RL) provides a data-driven alter-
+native that learns control policies directly from interaction,
+without requiring an explicit model of the robot [8]. While
+RL enables emergent locomotion behaviors, designing re-
+ward functions that yield diverse and stable gaits remains
+non-trivial. Simple rewards often produce unstable or repeti-
+tive behaviors, whereas complex ones tend to bias the policy
+toward specific gaits.
+Building on this,Hierarchical RLmethods [9], [10] have
+been proposed to handle multi-gait behaviors more explicitly.
+These architectures decompose control into a high-level
+gait selector and a low-level motion controller, improv-
+ing behavioral structure and interpretability. However, such
+frameworks often interpolate between similar symmetric
+gaits (e.g., walk↔trot) and struggle to generalize beyond
+predefined patterns.
+These limitations motivate hybrid strategies that integrate
+the structure and stability of model-based control with the
+adaptability of model-free learning. In particular, combining
+RL with MPC has shown improved performance in complex
+dynamical systems [11]–[13]. During training, such meth-
+ods commonly employ a Dreamer-like architecture [14] to
+jointly learn a dynamics model, reward estimator, policy, and
+value function for long-horizon control. During inference,
+an infinite-horizon trajectory optimization problem is solved
+by warm-starting the process using the RL policy, enabling
+arXiv:2510.20706v2  [cs.RO]  24 Oct 2025
+--- Page 2 ---
+faster convergence and greater adaptability. However, these
+approaches still inherit a key limitation of RL-based poli-
+cies—namely, the lack of gait , as the underlying RL policy
+typically converges to a single dominant behavior.
+TABLE I
+COMPARISON OF GAIT SELECTION METHODS.
+Capability End-to-End Classical Gait Dreamer Ours
+RL MPC Library Based
+[8] [5] [15] [11]
+Gait Diversity ✓ ✗ ✓ ✗ ✓
+Smooth Transitions ✓ ✗ ✗ ✗ ✓
+Online Gait Adaptation ✗ ✗ ✓ ✗ ✓
+Dynamics Awareness ✗ ✓ ✗ ✓ ✓
+Planning ✗ ✓ ✗ ✓ ✓
+As evident from Table I, none of the existing approaches
+provide all the desired capabilities within a single, unified
+framework. To address these challenges, we propose a con-
+trol framework for quadrupeds that enablescontinuous, real-
+time gait adaptationby jointly optimizing both actions and
+gait parameters. Inspired by recent work [11], our method
+integrates Model Predictive Path Integral (MPPI) control
+with a Dreamer module trained on diverse gait data, which
+supplies learned dynamics, reward, value, and policy priors
+to guide the optimization.
+Key Contributions
+•We introduce a novel control framework that performs
+infinite-horizon planning over gait and actionsvia
+MPPI guided by a learned dreamer module, enabling
+diverse gaits, smooth transitions and adaptive behavior
+in real time.
+•Our method achieves an average reduction of up to
+36.48 %in energy consumption compared to baseline
+approaches across varying target speeds, while main-
+taining accurate tracking and robust gait switching.
+•The framework is modular and can be used with any
+RL algorithm supporting gait-conditioned policies.
+II. SETUP
+In this section, we describe the approach incorporated,
+starting with the problem formulation and then detailing
+the training and deployment processes. To support planning
+under unknown dynamics, we utilize a dreamer module
+trained in parallel with the RL policy. This module learns
+all the parameters required by the MPPI planner during
+deployment. While the RL policy is trained using gait-
+specific rewards to induce diverse locomotion behaviors, the
+dreamer reward is learned using task and energy-specific
+terms, the details of which are explained in section III-A.
+Our implementation builds on the Walk These Ways
+framework [16], a gait-dependent RL architecture in which
+the policy is conditioned on manually specified gait parame-
+ters. While we adopt this structure in our work, the proposed
+planning framework is modular and readily extensible to
+other gait-dependent locomotion architectures.
+Fig. 2. Overview of the training pipeline: the dreamer module learns latent
+dynamics, reward, and value functions from observation histories, while the
+expert actor is trained using supervised signals from dreamer outputs.
+A. Preliminaries
+Quadruped locomotion is modeled as an infinite-horizon
+discounted Partially Observable Markov Decision Process
+(POMDP), defined by the tuple:
+M={S,A,O, r,P, γ,F}(1)
+whereS ⊂R n represents the state space,O ⊂R p the
+observation space, andA ⊂R m the action space. The
+system dynamics are governed by the transition function
+P:S × A 7→Pr(·), withPrbeing a probability measure,
+while the observation functionF:S 7→ Oprovides partial
+observability. The reward functionr:S × A 7→Rguides
+the learning process, andγ∈(0,1)is the discount factor.
+B. Training
+To solve this POMDP in a RL context, we employ an
+Actor-Critic framework trained using the Proximal Policy
+Optimization (PPO) algorithm [16], [17]. In parallel, the
+adaptation moduleE θ (encoder) and the dreamer module are
+trained using supervised learning (see fig. 2). The adaptation
+module is trained to estimate privileged information from
+observation history, which is then used to assist the actor
+during deployment [16].
+Observation & Action Space:The observations in our
+task includes the robot’s joint positions relative to their nomi-
+nal values, joint velocities, the timing reference variables and
+commanded gait (gcmd), projected gravity, and previous two
+actions. The action space consists of joint-angle perturbations
+(at) applied to the nominal joint angles (q nominal), where
+the commanded joint position (q t) at timetis given by:
+qt =a t +q nominal. These commands are processed through
+an actuator network [8] to compute the torques required for
+execution.
+Reward:For training, we adopt the reward structure
+from Walk These Ways [16], which combines task rewards
+with a range of auxiliary terms to enforce stable, gait-
+specific locomotion. These include penalties and incentives
+for tracking commanded velocities, maintaining posture, and
+achieving desired contact schedules.
+--- Page 3 ---
+Dreamer: Inspired by prior work in combining RL with
+planning [11], we incorporate a dreamer module that learns
+all components necessary for deployment-time planning.
+This modular framework is trained in parallel with the RL
+policy and includes:
+•Policy(π θ): A cloned policy trained to imitate the expert
+RL policy by minimizing the difference in actions under
+identical observations. This is used to warm-start the
+MPPI planner. It takes a 30-step observation history
+(ohist
+t ) as input and outputs action (a cloned).
+•Dynamics Model(D θ): Learned from environment
+interactions to predict the next observation given the
+current observation and action.
+•Reward Model(R θ): A learned reward function trained
+to capture general performance metrics such as velocity
+tracking and energy efficiency. It takes observation and
+action as input.
+•Value Function(V θ): Estimates the expected cumula-
+tive reward underR θ, enabling infinite-horizon approxi-
+mation without long rollouts during deployment. Unlike
+the RL critic, this is designed specifically for planning
+(see Section III-A).
+III. METHODOLOGY
+In this section, we present the details of our framework that
+enables gait optimization. The dreamer module, introduced
+in the previous section, is used by the Model Predictive Path
+Integral (MPPI) planner to optimize both control actions and
+gait parameters. We now describe the reward formulation
+used for learning, the structure of our MPPI-based planning
+algorithm, and the integrated framework as proposed above.
+A. Reward Formulation
+During the training of RL policy for different gait com-
+mands, the critic may rely on gait-specific rewards (such
+as Raibert rewards [18]) to enable effective learning of each
+gait’s locomotion strategy. However, to enable gait adaptation
+during deployment, we require a more generalized reward
+function—one that prioritizes energy efficiency and velocity
+tracking, without introducing bias toward any particular gait.
+To achieve this, we train a separate dreamer critic alongside
+the RL critic.
+Table II lists the components of the reward used during
+training and deployment. The first four terms are learned
+using dreamer and optimized jointly during training. The
+final two terms are added only during MPPI deployment to
+encourage smooth gait transitions and reduce actor diver-
+gence.
+The total reward at time step (t) used during MPPI plan-
+ning is given below. The weights for each rewards areα1−α6
+respectively (can be tuned according to requirements).
+Rt =α 1rvel+α2renergy +α3rang+α4rcont+α5rdiv+α6rgait
+B. Planning via MPPI
+We now shift our focus to the deployment phase (as
+shown in fig. 3), where control actions and gait parameters
+are optimized in real time. Performing this optimization
+TABLE II
+REWARD COMPONENTS USED IN TRAINING AND DEPLOYMENT.
+Term Description Equation
+rvel Velocity tracking −∥v robot −v target∥2
+renergy Energy efficiency −P
+t ∥τt · ˙qt∥
+rang Angular velocity −∥ω robot∥2
+rcont Action continuity −∥a t −a t−1∥2
+rdiv Actor divergence −∥a t −a cloned∥2
+rgait Gait continuity (Deployment only) −
+
+
+
+gcmd
+(t) −g cmd
+(t−1)
+
+
+
+
+2
+Fig. 3. Pictorial representation of the MPPI algorithm: the warm start
+utilises dreamer policy and dynamics to generate initial trajectories to help
+MPPI.
+online enables the system to use up-to-date observations
+and to incorporate deployment-time constraints—such as
+physical limitations or task-specific objectives—directly into
+the decision-making process.
+Our framework involves solving the following optimiza-
+tion problem to obtain the optimal action sequencea ∗
+t:t+H
+and the gait commandsg ∗cmd
+t:t+H at the current observationo t:
+max
+(at,...,at+H)
+(gcmd
+t ,...,gcmd
+t+H)
+H−1X
+k=0
+γkRθ(ˆot+k, at+k) +γHVθ(ˆot+H)
+s.t.ˆo t =o t,
+ˆot+k+1 =Dθ(ˆot+k, at+k),∀k= 0, . . . , H−1
+(2)
+In this formulation,o t denotes the current observation,ˆoi
+is simulated byD θ, which also incorporates gait commands
+gcmd
+t ,γis the discount factor, andR θ,V θ, andD θ represent
+the reward function, value function, and dynamics model,
+respectively. The objective is to maximize the total expected
+return, subject to the learned dynamics.
+We adopt a MPPI algorithm for deployment due to its
+sampling-based nature and its ability to operate without
+requiring gradients. This allows us to leverage the learned
+dreamer dynamics and reward models even if they are
+non-smooth or non-differentiable. MPPI also accommodates
+action and gait constraints directly in the sampling procedure.
+At each time step(t), a set of trajectories is sampled
+from the Dreamer policy and dynamics model, which serves
+as a warm start to initialize the mean and variance for
+MPPI. Using this warm-started Gaussian distribution, action
+--- Page 4 ---
+sequences are sampled, and corresponding trajectory rollouts
+are generated through the Dreamer dynamics model. The
+returns are then computed using the Dreamer reward model
+with value bootstrapping. The top-performing trajectories
+are selected based on their returns, and a new Gaussian
+distribution is fitted to these elites via a momentum-based
+update. Here,A S
+τ denotes the sampled action trajectory
+space,A E
+τ represents the elite action trajectory space, andR τ
+is the set of returns associated with the action trajectories.
+Algorithm 1:MPPI Planner with Gait Optimization
+θ: Dreamer model parameters;
+(µt−1, σt−1): prior distribution parameters;
+ot: current observation;
+gcmd
+prev : previous gait command
+ift== 0then
+Setg cmd
+prev ←nominal gait (e.g., trot)
+Warm start:Initialize(µ t−1, σt−1), andM π from policy
+πθ using dynamicsD θ
+Set(µ 0, σ0)←(µ t−1, σt−1)
+Initialize empty setsA E
+τ , AS
+τ , Rτ
+fori←1toNdo
+SampleMtrajectories fromN(µ i−1, σi−1)
+foreach sampled trajectory
+(gj,cmd
+t , . . . , gj,cmd
+t+H , aj
+t, . . . , aj
+t+H)do
+Wrap:(g j,cmd
+t , . . . , gj,cmd
+t+H )←
+wrap(gj,cmd
+t , . . . , gj,cmd
+t+H )
+Rj ←0
+Setˆoj
+t ←simulateo t withg j,cmd
+t
+fork←0toH−1do
+Rj +=γ k ·R θ(ˆoj
+t+k, aj
+t+k)
+ˆoj
+t+k+1 ←D θ(ˆoj
+t+k, aj
+t+k)
+// Add gait continuity penalty
+Rj −=λ· ∥gj,cmd
+t+k −g j,cmd
+t+k−1∥2
+// Add terminal value prediction
+Rj +=γ HVθ(ˆoj
+t+H)
+Add(g j,cmd
+t , . . . , gj,cmd
+t+H , aj
+t, . . . , aj
+t+H),R j to
+AS
+τ ,R τ
+SortA S
+τ byR τ and select top-M elite trajectories to
+formA E
+τ
+Fit new distribution(µ elite, σelite)toA E
+τ
+Update
+(µi, σi)←β(µ elite, σelite) + (1−β)(µi−1, σi−1)
+Result:First action fromN(µ N , σN )and updatedg cmd
+prev
+C. Gait Parameter Normalization
+The gait parameters are represented as a[3×1]vector,
+following the formulation in [16]. Each element is a scalar in
+the range[0,1], encoding the phase offset between specific
+leg pairs. This compact representation enables continuous
+modulation of gait structures and allows the expression of all
+two-beat quadrupedal contact patterns. Smooth and bounded
+gait variation is enforced using a wrap function.
+˜gcmd = (gcmd%1.0)
+D. Integrated Architecture
+To summarise, the pipeline operates in two stages:
+•Offline Training:A dreamer model is trained end-
+to-end using a diverse, gait-conditioned RL frame-
+work. It learns the policy, dynamics, reward, and value
+functions. The modular structure of dreamer enhances
+interpretability and flexibility within the framework.
+•Online Deployment:During deployment, an MPPI
+controller leverages the learned dreamer model to
+jointly optimize for both actions and gait parameters.
+The proposed architecture enables generalization across
+environments and supports adaptive, energy-efficient loco-
+motion with gait transitions that emerge from optimization
+rather than manual scripting.
+IV. EXPERIMENTS ANDRESULTS
+We evaluate our framework through a series of experi-
+ments in simulation, focusing on algorithm performance, gait
+transitions, and energy efficiency. The results highlight the
+limitations of fixed-gait policies and demonstrate the benefits
+of adaptive gait optimization.
+For both training and deployment, we used an open-source
+simulation environment for the Unitree Go1 quadruped robot,
+built on NVIDIA’s Isaac Gym simulator [19]. The PPO
+policy [17] and its corresponding neural network were im-
+plemented and trained using PyTorch [20], while the dreamer
+module—including the policy, dynamics model, value func-
+tion, and reward model, which are Multi-Layer Perceptrons
+with hidden dimensions (256, 128) was implemented using
+JAX [21].
+A. Ablation study
+To validate the motivation behind our approach, we per-
+form an ablation study that examines the limitations of
+using fixed gaits in a flat-terrain setting. Specifically, we
+evaluate four major gaits—trot, pace, bound, and pronk—by
+measuring velocity tracking error and cost of transport across
+a range of commanded velocities. This analysis reveals (as
+shown in fig. 4) that no single gait performs well across
+all speeds, highlighting the need for a framework that can
+optimize gait selection during deployment based on task
+demands and performance criteria.
+From Fig. 4, we observe that different gaits exhibit dis-
+tinct performance profiles as target speed increases. Trotting
+maintains consistently low linear velocity errors; however,
+as the speed rises from 0.5 m/s to 1.5 m/s, its Cost of
+Transport (CoT) remains nearly constant. In contrast, pronk-
+ing becomes more energy-efficient at higher speeds while
+maintaining competitive tracking accuracy, suggesting better
+suitability for fast locomotion. These observations highlight
+that no single gait excels across all conditions, underscoring
+the need for a planning framework that adaptively selects
+gaits based on task demands and performance trade-offs.
+B. Gait Adaptation
+The simulation results are shown in Fig. 5, where a
+continuously increasing forward velocity command is used
+to evaluate how the planner adapts its gait in response to
+gradually changing task demands. The robot successfully
+--- Page 5 ---
+Fig. 4. Performance comparison of fixed gaits across command velocities on flat terrain. The results illustrate how linear and angular tracking errors, as
+well as cost of transport, vary significantly with gait choice—especially at higher velocities—highlighting the limitations of using a single gait policy and
+the need for adaptive gait selection.
+Fig. 5. Evaluation of the proposed locomotion planner under a continuously increasing velocity command. The robot effectively tracks the desired forward
+velocity with smooth acceleration. Joint trajectories exhibit stable and periodic behavior, indicating coordinated motion. Mean power consumption shows
+an initial peak during acceleration followed by steady oscillations. The gait diagram illustrates consistent foot contact patterns and adaptive gait transitions
+corresponding to the increasing command speed, with representative snapshots shown below.
+TABLE III
+TUNABLE HYPERPARAMETERS OFALGORITHM1.
+Hyperparameter Value
+Horizon (H) 6
+MPC iterations (N) 6
+Num. samples (M) 500
+Num. policy samples (M π) 30
+Hyperparameter Value
+Num. elite samples (M elite) 60
+Discount factor (γ) 0.99
+Momentum factor (β) 0.95
+Temperature (T) 0.5
+tracks the commanded velocity throughout the episode, and
+the joint position trajectories remain cyclic and smooth,
+indicating stable locomotion even as the gait evolves over
+time.
+To visualize gait modulation, we directly plot the foot con-
+tact patterns for all four legs. These contact schedules reveal
+how interlimb coordination adapts with increasing velocity,
+capturing continuous gait transitions without needing discrete
+gait labels, also highlighting the planner’s ability to generate
+context-specific gaits in a continuous manner.
+A key observation is that the robot maintains reliable
+velocity tracking performance during these transitions, with
+no visible degradation in motion stability or quality. The
+smooth joint trajectories further confirm that transitions be-
+tween gaits are not abrupt or disruptive. Although trotting is
+commonly favored in RL-based quadrupedal locomotion, the
+planner frequently adapts to alternative coordination patterns
+depending on the context—suggesting that tracking accuracy
+and energy efficiency are better achieved through continuous
+and adaptive gait modulation. These results demonstrate that
+the planner effectively selects task-appropriate gaits while
+preserving motion continuity and robustness.
+C. Energy Consumption
+We analyzed energy consumption by comparing our gait
+adaptation method with fixed-gait RL baselines using Cost
+--- Page 6 ---
+TABLE IV
+COST OF TRANSPORT COMPARISON
+Methods / Velocity 0.5 m/s 1.0 m/s 1.5 m/s 2.0 m/s
+RL: Trotting 1.09 0.98 1.07 1.16
+RL: Pacing 1.28 1.00 1.11 1.19
+RL: Bounding 1.55 1.29 1.29 1.28
+RL: Pronking 1.49 1.09 1.04 1.08
+Ours 0.918 0.771 0.822 0.914
+of Transport (CoT), defined as |P|
+m·g·v . Here,|P|denotes the
+average power (time-averaged sum of joint torque–velocity
+products across all joints),mis the robot mass,gis gravi-
+tational acceleration, andvis the average forward velocity.
+As shown in Table IV, our method consistently results in
+a lower cost of transport across all commanded velocities.
+Notably, the energy consumption remains 15-20% lower
+constantly when compared to the most efficient gaits in each
+velocity range.
+This result indicates the inefficiency of using a single gait
+across all speeds. For example, trotting is efficient at lower
+speeds, whereas pronking performs better at 2.0 m/s. Our
+framework avoids such mismatches by dynamically adapt-
+ing the gait to suit the environment, resulting in smoother
+transitions and significantly reduced energy expenditure.
+D. Discussion and Future Work
+Some of the practical considerations for hardware de-
+ployment and feasibility of the proposed method include
+computational overhead and onboard inference frequency.
+Although the results presented above were obtained using
+a high-specification server, our framework can be deployed
+on relatively smaller systems as well. Specifically, we used
+an NVIDIA A6000 GPU, which required approximately 5–6
+hours to train the RL policy with the Dreamer module. For
+inference, we evaluated the controller on an independent sys-
+tem equipped with an NVIDIA RTX 3080 GPU, achieving
+a control frequency of around 330 Hz. This indicates the
+potential for smooth hardware deployment even on moder-
+ately powered systems. Onboard GPU computation remains
+a requirement for real-world deployment.
+The prospect of hardware deployment motivates ex-
+tending this framework to multi-terrain locomotion, where
+quadrupeds must continuously adapt their gait to uneven
+and rough surfaces for robust performance. Future work will
+focus on developing terrain-aware extensions of the proposed
+method, incorporating visual inputs for predictive planning,
+and integrating the Dreamer module with structured models
+such as Lagrangian Neural Networks (LNNs) to enhance
+generalization and reliability in real-world deployment.
+V. CONCLUSION
+In this work, we proposed an optimization framework for
+adaptive quadrupedal locomotion that selects gaits based on
+task demands such as speed and energy efficiency, rather than
+relying on a fixed policy. Unlike standard RL approaches that
+often converge to a single gait, our method optimizes gait pa-
+rameters online using Model Predictive Path Integral (MPPI)
+control. Simulation results show that our approach maintains
+high velocity tracking accuracy across a wide range of
+commanded speeds while reducing energy consumption by
+up to 40% at higher speeds compared to fixed-gait baselines.
+The results further demonstrate smooth transitions between
+gaits without compromising performance, highlighting the
+framework’s effectiveness in achieving both adaptability and
+efficiency.
+REFERENCES
+[1] D. F. Hoyt and C. R. Taylor, “Gait and the energetics of locomotion
+in horses,”Nature, vol. 292, no. 5820, pp. 239–240, 1981.
+[2] M. C. Granatosky, C. M. Bryce, J. Hanna, A. Fitzsimons, M. F. Laird,
+K. Stilson, C. E. Wall, and C. F. Ross, “Inter-stride variability triggers
+gait transitions in mammals and birds,”Proceedings of the Royal
+Society B: Biological Sciences, vol. 285, no. 1893, p. 20181766, 2018.
+[3] M. Shafiee, G. Bellegarda, and A. Ijspeert, “Viability leads to the
+emergence of gait transitions in learning agile quadrupedal locomotion
+on challenging terrains,”Nature Communications, vol. 15, no. 1,
+p. 3073, 2024.
+[4] D. Hoeller, N. Rudin, D. V . Sako, and M. Hutter, “Anymal parkour:
+Learning agile navigation for quadrupedal robots,”Science Robotics,
+vol. 9, 2023.
+[5] J. D. Carlo, P. M. Wensing, B. Katz, G. Bledt, and S. Kim, “Dynamic
+locomotion in the mit cheetah 3 through convex model-predictive con-
+trol,”2018 IEEE/RSJ International Conference on Intelligent Robots
+and Systems (IROS), pp. 1–9, 2018.
+[6] G. Raiola, E. M. Hoffman, M. Focchi, N. G. Tsagarakis, and C. Sem-
+ini, “A simple yet effective whole-body locomotion framework for
+quadruped robots,”Frontiers in Robotics and AI, vol. 7, 2020.
+[7] D. Kim, J. D. Carlo, B. Katz, G. Bledt, and S. Kim, “Highly dynamic
+quadruped locomotion via whole-body impulse control and model
+predictive control,”ArXiv, vol. abs/1909.06586, 2019.
+[8] J. Hwangbo, J. Lee, A. Dosovitskiy, D. Bellicoso, V . Tsounis,
+V . Koltun, and M. Hutter, “Learning agile and dynamic motor skills
+for legged robots,”Science Robotics, vol. 4, no. 26, p. eaau5872, 2019.
+[9] Y . Yang, T. Zhang, E. Coumans, J. Tan, and B. Boots, “Fast
+and efficient locomotion via learned gait transitions,”ArXiv,
+vol. abs/2104.04644, 2021.
+[10] L. Wei, Y . Li, Y . Ai, Y . Wu, H. Xu, W. Wang, and G. Hu, “Learning
+multiple-gait quadrupedal locomotion via hierarchical reinforcement
+learning,”International Journal of Precision Engineering and Manu-
+facturing, vol. 24, pp. 1599–1613, 2023.
+[11] A. Shirwatkar, N. Saxena, K. Chandra, and S. Kolathaya, “Pip-loco:
+A proprioceptive infinite horizon planning framework for quadrupedal
+robot locomotion,” 2024.
+[12] H. Sikchi, W. Zhou, and D. Held, “Learning off-policy with online
+planning,” inConference on Robot Learning, pp. 1622–1633, PMLR,
+2022.
+[13] N. Hansen, H. Su, and X. Wang, “Td-mpc2: Scalable, robust world
+models for continuous control,”arXiv preprint arXiv:2310.16828,
+2023.
+[14] D. Hafner, T. Lillicrap, J. Ba, and M. Norouzi, “Dream to control:
+Learning behaviors by latent imagination,” 2020.
+[15] L. Amatucci, J. ha Kim, J. Hwangbo, and H. won Park, “Monte
+carlo tree search gait planner for non-gaited legged system control,”
+2022 International Conference on Robotics and Automation (ICRA),
+pp. 4701–4707, 2022.
+[16] G. B. Margolis and P. Agrawal, “Walk these ways: Tuning robot
+control for generalization with multiplicity of behavior,” inConference
+on Robot Learning, pp. 22–31, PMLR, 2023.
+[17] J. Schulman, F. Wolski, P. Dhariwal, A. Radford, and O. Klimov,
+“Proximal policy optimization algorithms,”arXiv preprint
+arXiv:1707.06347, 2017.
+[18] M. H. Raibert,Legged robots that balance. MIT press, 1986.
+[19] V . Makoviychuk, L. Wawrzyniak, Y . Guo, M. Lu, K. Storey, M. Mack-
+lin, D. Hoeller, N. Rudin, A. Allshire, A. Handa, and G. State,
+“Isaac gym: High performance gpu-based physics simulation for robot
+learning,” 2021.
+--- Page 7 ---
+[20] A. Paszke, S. Gross, S. Chintala, G. Chanan, E. Yang, Z. DeVito,
+Z. Lin, A. Desmaison, L. Antiga, and A. Lerer, “Automatic differen-
+tiation in pytorch,” 2017.
+[21] J. Bradbury, R. Frostig, P. Hawkins, M. J. Johnson, C. Leary,
+D. Maclaurin, G. Necula, A. Paszke, J. VanderPlas, S. Wanderman-
+Milne, and Q. Zhang, “JAX: composable transformations of
+Python+NumPy programs,” 2018.

@@ -1,0 +1,13 @@
+robot_type: quadruped
+num_legs: 4
+action_spec:
+  num_actions: 12
+  action_min: -1.0
+  action_max: 1.0
+observation_spec:
+  num_observations: 48
+  includes_proprioception: true
+  includes_vision: true
+  image_height: 64
+  image_width: 64
+  image_channels: 3

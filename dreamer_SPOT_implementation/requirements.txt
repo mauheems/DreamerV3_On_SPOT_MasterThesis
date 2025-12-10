@@ -25,4 +25,4 @@ omegaconf>=2.3
 
 # Optional dev / type hints
 typing-extensions>=4.7
-torchtyping>=0.2.0
+torchtyping>=0.1.5

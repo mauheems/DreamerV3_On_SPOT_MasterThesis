@@ -139,10 +139,7 @@ node_modules/
 npm-debug.log
 yarn-error.log
 
-# Research/Documentation (large files)
-*.pdf
-*.pages
-*.docx
+
 
 # Data files
 *.csv

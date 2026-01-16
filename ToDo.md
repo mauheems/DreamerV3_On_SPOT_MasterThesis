@@ -1,0 +1,7 @@
+- make a planning for phases of thesis
+- Prepare connecting to SPOT
+- Look at how we are going to record data
+- prepare dreamer model and test training loop 
+    -> JAX faster than pytorch
+    ->
+- study dreamer v3

@@ -1,3 +1,6 @@
+/openbots_backpack
+/dreamer_SPOT_implementation/informed-dreamer/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

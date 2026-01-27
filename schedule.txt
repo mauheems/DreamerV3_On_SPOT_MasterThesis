@@ -1,0 +1,36 @@
+SPOT free days:
+monday 
+
+
+data collection:
+Jan 26 to Feb 20
+
+world model training:
+Feb 23 to March 6
+
+actor critic training:
+Feb 23 to Apr 6
+
+results gathering + finetuning:
+Apr 6 to May 6th
+
+Writing Paper:
+May 6th to May 25
+
+
+==================== Project Schedule Timeline ====================
+
+                   Jan 15   Feb 1     Feb 15     Mar 1   Mar 15     Apr 1     Apr 15     May 1    May 15    June 1   June 15    DONE
+                    |---------|---------|---------|---------|---------|---------|---------|---------|---------|---------|---------|
+data collection:            [##############.....]
+world model train:                     [....###.................]
+actor critic train:                        [...##########################...]
+results/finetune:                                                       [...#################...]
+writing paper:                                                                             [##############]
+greenlight meeting:                                                                                       [####]
+Prepare Defence:                                                                                          [##############]
+
+Legend:
+# = active period for phase
+. = inactive
+-------------------------------------------------------------------

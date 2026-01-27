@@ -5,3 +5,10 @@
     -> JAX faster than pytorch
     ->
 - study dreamer v3
+
+
+Data collecting to Do:
+- look if we can find all the right data to record 
+- record while teleopping for first data.  CHECK
+- see how we can get obstacle map
+- try to go over obstacles with autowalk 

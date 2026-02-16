@@ -1,0 +1,3 @@
+[submodule "openbots_backpack/src/externals/spot_ros2"]
+	path = openbots_backpack/src/externals/spot_ros2
+	url = https://github.com/bdaiinstitute/spot_ros2.git

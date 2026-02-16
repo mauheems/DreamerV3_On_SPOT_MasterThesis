@@ -1,5 +1,8 @@
-/openbots_backpack
 /dreamer_SPOT_implementation/informed-dreamer/
+
+# Colcon artifacts
+install/
+log/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -148,7 +151,12 @@ yarn-error.log
 *.csv
 *.xlsx
 *.db
+*.db3
+*.h5
 
 # Temporary files
 *.tmp
 *.temp
+
+# ROS bag / dataset artifacts
+openbots_backpack/src/packages/dataset/recorded_data/

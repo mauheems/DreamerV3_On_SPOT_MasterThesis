@@ -1,0 +1,57 @@
+# Configuration file for SPOT Data Recording
+# Includes valid image stitcher parameters to fix black image issue
+
+/**:
+  ros__parameters:
+    # Spot Login Information
+    username: "user"
+    password: "corspotuser1" 
+    hostname: "192.168.10.102" 
+
+    # Status Updates
+    metrics_rate: 0.04
+    lease_rate: 1.0
+    async_tasks_rate: 10.0
+    robot_state_rate: 50.0
+    image_rate: 15.0
+
+    # Control
+    auto_claim: False
+    auto_power_on: False
+    auto_stand: False
+    
+    # Estop
+    estop_timeout: 9.0
+    start_estop: False
+
+    # Frames
+    preferred_odom_frame: "odom" 
+    tf_root: "odom" 
+    
+    # Command durations
+    cmd_duration: 0.25 
+    arm_cmd_duration: 1.0 
+    
+    # Cameras
+    rgb_cameras: True
+    initialize_spot_cam: False 
+    
+    # Lidar
+    use_velodyne: False 
+    velodyne_rate: 10.0 
+
+    # Image Stitcher Parameters (Fixed)
+    # Virtual camera intrinsic matrix [fx, 0, cx, 0, fy, cy, 0, 0, 1]
+    virtual_camera_intrinsics: [385.0, 0.0, 315.0, 0.0, 385.0, 844.0, 0.0, 0.0, 1.0]
+    
+    # Plane that the stitched image is projected on with respect to the virtual camera frame. 
+    virtual_camera_projection_plane: [-0.15916, 0.0, 0.987253]
+    
+    # The distance from the virtual camera frame to the projection plane
+    virtual_camera_plane_distance: 0.5
+    
+    # The stitched image will be of size (<frontleft image width>, <frontleft image height> + row_padding)
+    stitched_image_row_padding: 1182
+
+    # Gripper
+    gripperless: False

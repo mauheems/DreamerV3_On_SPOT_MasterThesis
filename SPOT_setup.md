@@ -18,10 +18,15 @@ This will:
 After building, execute the run script, then build and source the workspace:
 
 ```bash
-./docker_run
+./docker_run.sh
+# This automatically starts the container with USB device access (/dev/input mounted)
+# The --privileged flag is already included in the script
+
 colcon build
 source install/setup.bash
 ```
+
+**Note:** The `docker_run.sh` script already includes USB device mapping (`-v /dev/input:/dev/input`), so you don't need to add `--privileged` separately.
 
 This will:
 - Start the container
@@ -54,56 +59,50 @@ ros2 launch spot_nav spot_driver_nmea.launch.py \
   cameras_used:=frontleft,frontright \
   stitch_front_images:=true \
   config_file:=/home/ob/openbots_ws/src/packages/spot_recorder_config.yaml
-
-```
-```bash
-ros2 launch spot_driver spot_driver.launch.py \
-  cameras_used:=frontleft,frontright \
-  stitch_front_images:=true \
-  config_file:=/home/ob/openbots_ws/src/packages/spot_recorder_config.yaml
 ```
 
 This launches:
+- `joy_node` (joystick input)
 - `nmea_udp_to_ros` node
 - `nmea_topic_driver` node
 - `spot_driver` node
+- `spot_local_grid_node`
 
-### Spot Navigation
+### Joystick Teleop (2nd terminal)
 
-Send waypoints to the Spot robot using `spot_nav_node`. For example, to walk forward 1 meter:
-
-```bash
-ros2 run spot_nav spot_nav_node
-```
-
-### Data Recording
-
-In another terminal, access the container:
+To enable joystick control and data recording, run in a separate terminal (after the spot driver is running):
 
 ```bash
-docker exec -it openbots_container_new bash
+ros2 run dataset spot_teleop_joy
 ```
 
-Record sensor data:
+This will start accepting PS4 controller input for controlling the robot and recording data.
 
-```bash
-python3 -m dataset.spot_data_recorder
+**Joystick Controls:**
+- **Left Stick**: Forward/Backward movement
+- **Right Stick**: Rotation (Yaw)
+- **X button**: Stand
+- **Circle button**: Sit
+- **L1**: Auto gait
+- **L2**: SpeedSelectTrot gait
+- **R1**: Crawl gait
+- **R2**: Jog gait
+- **L3**: SpeedSelectAmble gait
+- **Square button**: Start/Stop recording
+- **Triangle button**: Discard current recording (without saving)
 
-cd src/packages/dataset/
-python3 episode_bag_recorder.py
-```
+**Data Recording:**
+Recordings are saved automatically to `/home/ob/openbots_ws/src/packages/dataset/recorded_data/` when you press Square to stop recording. Press Triangle to discard the current recording without saving.
 
-Record ROS2 bag:
 
-```bash
-ros2 bag record -a
-```
+
 
 ---
 
 ## 7. Spot WiFi Network Configuration
 
-On the **Spot admin panel**:
+On the **Spot admin pacd ~/openbots_ws/src/packages/dataset/
+python3 convert_bag_to_hdf5.pynel**:
 
 1. Go to **Admin Panel**
 2. Change the network name and password:

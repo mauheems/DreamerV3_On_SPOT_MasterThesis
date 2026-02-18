@@ -11,6 +11,7 @@ docker run -it \
     -v $(pwd)/src/packages:/home/ob/openbots_ws/src/packages \
     -v /dev/input:/dev/input \
     --device-cgroup-rule='c 13:* rmw' \
+    --group-add=995 \
     -w /home/ob/openbots_ws \
     --name openbots_container_new \
     $IMAGE_NAME

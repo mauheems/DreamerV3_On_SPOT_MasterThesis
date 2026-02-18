@@ -12,6 +12,7 @@
   <depend>geometry_msgs</depend>
   <depend>dataset</depend>
   <exec_depend>synchros2</exec_depend>
+  <exec_depend>joy</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

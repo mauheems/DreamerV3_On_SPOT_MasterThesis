@@ -33,16 +33,14 @@ class BagConverter:
     def __init__(self, bag_path, output_dir, target_freq=5.0):
         self.bag_path = bag_path
         self.output_dir = output_dir
-        self.target_freq = target_freq
+        self.target_freq = target_freq  # Default: 5 Hz (limited by camera hardware on SPOT)
         self.bridge = CvBridge()
         
         # Buffer for latest messages
         self.latest = {
-            '/camera/frontleft/image': None,
-            '/camera/frontright/image': None,
             '/camera/frontmiddle_virtual/image': None,
-            '/depth/frontleft/image': None,
-            '/depth/frontright/image': None,
+            '/depth_registered/frontleft/image': None,
+            '/depth_registered/frontright/image': None,
             '/spot/local_grid/terrain': None,
             '/spot/local_grid/obstacle_distance': None,
             '/odometry': None,
@@ -52,16 +50,13 @@ class BagConverter:
         
         # Episode storage
         self.episode = {
-            'images_left': [],
-            'images_right': [],
-            'images_front': [],
-            'depth_left': [],
-            'depth_right': [],
-            'terrain_grids': [],
-            'obstacle_grids': [],
-            'states': [],     # [pos+orient]
-            'velocities': [], # [linear+angular]
-            'actions': [],    # [linear+angular]
+            'images_front': [],           # Stitched front camera
+            'depth_registered_left': [],  # Left depth
+            'depth_registered_right': [], # Right depth
+            'terrain_grids': [],          # Terrain height grids
+            'states': [],                 # [pos+orient]
+            'velocities': [],             # [linear+angular]
+            'actions': [],                # [linear+angular]
             'locomotion_modes': [],
             'timestamps': []
         }
@@ -75,7 +70,7 @@ class BagConverter:
         topics = reader.get_all_topics_and_types()
         topic_types = {t.name: t.type for t in topics}
 
-        # We will trigger a "step" based on the frontleft camera (approx 10Hz/5Hz)
+        # We will trigger a "step" based on the frontmiddle camera (approx 10Hz/5Hz)
         # But we enforce target_freq to avoid duplicate frames
         last_step_time = 0.0
         step_interval = 1.0 / self.target_freq
@@ -105,19 +100,11 @@ class BagConverter:
                         encoding = "32FC1"
                     
                     cv_img = self.bridge.imgmsg_to_cv2(msg, desired_encoding=encoding)
-                    
-                    # Rotate cameras if needed (Spot cams are often rotated 90 deg)
-                    if topic in ['/camera/frontleft/image', '/camera/frontright/image']:
-                        try:
-                            cv_img = cv2.rotate(cv_img, cv2.ROTATE_90_CLOCKWISE)
-                        except:
-                            pass
-                            
                     self.latest[topic] = cv_img
                     
                     # --- Trigger Step ---
-                    # We use frontleft camera as the "clock" for the episode
-                    if topic == '/camera/frontleft/image':
+                    # We use frontmiddle camera as the "clock" for the episode
+                    if topic == '/camera/frontmiddle_virtual/image':
                         if t_sec - last_step_time >= step_interval:
                             self._save_step(t_sec)
                             last_step_time = t_sec
@@ -157,35 +144,32 @@ class BagConverter:
     def _save_step(self, timestamp):
         # Perform "Zero-order hold" - take the latest available value for everything
         
-        # 1. Images (Required)
-        if self.latest['/camera/frontleft/image'] is None:
-            return # Skip if we don't have the main camera yet
+        # 1. Images (Required) - frontmiddle_virtual for stitched camera
+        if self.latest['/camera/frontmiddle_virtual/image'] is None:
+            return # Skip if we don't have the image yet
             
-        self.episode['images_left'].append(self.latest['/camera/frontleft/image'])
-        self.episode['timestamps'].append(timestamp)
+        self.episode['images_front'].append(self.latest['/camera/frontmiddle_virtual/image'])
         
-        # 2. Other Images (Optional - fill with zeros or dupes if missing to keep shape)
-        if self.latest['/camera/frontright/image'] is not None:
-             self.episode['images_right'].append(self.latest['/camera/frontright/image'])
+        # 2. Registered depth maps
+        if self.latest['/depth_registered/frontleft/image'] is not None:
+            self.episode['depth_registered_left'].append(self.latest['/depth_registered/frontleft/image'])
         else:
-             self.episode['images_right'].append(np.zeros_like(self.latest['/camera/frontleft/image']))
-             
-        if self.latest['/camera/frontmiddle_virtual/image'] is not None:
-            self.episode['images_front'].append(self.latest['/camera/frontmiddle_virtual/image'])
-            
-        # 3. Depth (Optional)
-        if self.latest['/depth/frontleft/image'] is not None:
-            self.episode['depth_left'].append(self.latest['/depth/frontleft/image'])
-        if self.latest['/depth/frontright/image'] is not None:
-            self.episode['depth_right'].append(self.latest['/depth/frontright/image'])
-
-        # 4. Grids
+            # Placeholder if missing
+            self.episode['depth_registered_left'].append(np.zeros((64, 64), dtype=np.uint8))
+        
+        if self.latest['/depth_registered/frontright/image'] is not None:
+            self.episode['depth_registered_right'].append(self.latest['/depth_registered/frontright/image'])
+        else:
+            # Placeholder if missing
+            self.episode['depth_registered_right'].append(np.zeros((64, 64), dtype=np.uint8))
+        
+        # 3. Terrain grid (if available)
         if self.latest['/spot/local_grid/terrain'] is not None:
-             self.episode['terrain_grids'].append(self.latest['/spot/local_grid/terrain'])
-        if self.latest['/spot/local_grid/obstacle_distance'] is not None:
-             self.episode['obstacle_grids'].append(self.latest['/spot/local_grid/obstacle_distance'])
+            self.episode['terrain_grids'].append(self.latest['/spot/local_grid/terrain'])
+        
+        self.episode['timestamps'].append(timestamp)
 
-        # 5. Odom
+        # 2. Odom
         if self.latest['/odometry'] is not None:
             self.episode['states'].append(self.latest['/odometry']['state'])
             self.episode['velocities'].append(self.latest['/odometry']['velocity'])
@@ -193,21 +177,85 @@ class BagConverter:
             self.episode['states'].append(np.zeros(7, dtype=np.float32))
             self.episode['velocities'].append(np.zeros(6, dtype=np.float32))
 
-        # 6. Action
+        # 3. Action
         if self.latest['/cmd_vel'] is not None:
             self.episode['actions'].append(self.latest['/cmd_vel'])
         else:
             self.episode['actions'].append(np.zeros(6, dtype=np.float32))
 
-        # 7. Locomotion mode
+        # 4. Locomotion mode
         if self.latest['/status/mobility_params'] is not None:
             self.episode['locomotion_modes'].append(self.latest['/status/mobility_params'])
         else:
             self.episode['locomotion_modes'].append(0)
 
+    def _filter_mismatched_shapes(self):
+        """Remove frames where sensor data has inconsistent shapes."""
+        n_frames = len(self.episode['timestamps'])
+        
+        # Ensure all lists are the same length (pad or trim as needed)
+        min_len = min(
+            len(self.episode['images_front']),
+            len(self.episode['depth_registered_left']),
+            len(self.episode['depth_registered_right']),
+            len(self.episode['terrain_grids']),
+            len(self.episode['states']),
+            len(self.episode['velocities']),
+            len(self.episode['actions']),
+            len(self.episode['locomotion_modes']),
+            len(self.episode['timestamps'])
+        )
+        
+        # Trim all to same length
+        for key in self.episode:
+            if isinstance(self.episode[key], list):
+                self.episode[key] = self.episode[key][:min_len]
+        
+        print(f"Aligned all arrays to length {min_len}")
+        
+        # Now filter for left != right mismatch
+        valid_indices = []
+        for i in range(min_len):
+            left_shape = self.episode['depth_registered_left'][i].shape
+            right_shape = self.episode['depth_registered_right'][i].shape
+            if left_shape == right_shape:
+                valid_indices.append(i)
+            else:
+                print(f"  Frame {i}: depth mismatch (L:{left_shape} vs R:{right_shape})")
+        
+        if len(valid_indices) < min_len:
+            print(f"Pass 1 filtering: {min_len} → {len(valid_indices)} frames (removed L!=R mismatches)")
+            for key in self.episode:
+                if isinstance(self.episode[key], list):
+                    self.episode[key] = [self.episode[key][i] for i in valid_indices]
+            min_len = len(valid_indices)
+        
+        # Now filter for consistent depth shape
+        if min_len > 0:
+            depth_shapes = [self.episode['depth_registered_left'][i].shape for i in range(min_len)]
+            
+            from collections import Counter
+            shape_counts = Counter(depth_shapes)
+            most_common_shape = shape_counts.most_common(1)[0][0]
+            
+            valid_indices = [i for i in range(min_len) if self.episode['depth_registered_left'][i].shape == most_common_shape]
+            
+            if len(valid_indices) < min_len:
+                print(f"Pass 2 filtering: {min_len} → {len(valid_indices)} frames (kept shape {most_common_shape})")
+                for key in self.episode:
+                    if isinstance(self.episode[key], list):
+                        self.episode[key] = [self.episode[key][i] for i in valid_indices]
+
     def _write_hdf5(self):
         if not self.episode['timestamps']:
             print("No data collected!")
+            return
+
+        # Filter out frames with mismatched shapes (keeps episode consistent)
+        self._filter_mismatched_shapes()
+        
+        if not self.episode['timestamps']:
+            print("No valid frames after filtering!")
             return
 
         bag_name = os.path.basename(self.bag_path.rstrip('/'))
@@ -216,36 +264,34 @@ class BagConverter:
         print(f"Saving to {out_name}...")
         
         with h5py.File(out_name, 'w') as f:
-            # Compress images
-            f.create_dataset('observations/images_left', data=np.stack(self.episode['images_left']), compression='gzip')
-            f.create_dataset('observations/images_right', data=np.stack(self.episode['images_right']), compression='gzip')
-            
+            # Save stitched front camera image
             if self.episode['images_front']:
                 f.create_dataset('observations/images_front', data=np.stack(self.episode['images_front']), compression='gzip')
+                print(f"  Saved {len(self.episode['images_front'])} stitched front images")
             
-            # Depth (usually uint16 or float32 - compress well)
-            if self.episode['depth_left']:
-                f.create_dataset('observations/depth_left', data=np.stack(self.episode['depth_left']), compression='gzip')
-            if self.episode['depth_right']:
-                 f.create_dataset('observations/depth_right', data=np.stack(self.episode['depth_right']), compression='gzip')
-
-            # Grids
+            # Save registered depth maps (stereo pair)
+            if self.episode['depth_registered_left']:
+                f.create_dataset('observations/depth_registered_left', data=np.stack(self.episode['depth_registered_left']), compression='gzip')
+                print(f"  Saved {len(self.episode['depth_registered_left'])} left depth frames")
+            
+            if self.episode['depth_registered_right']:
+                f.create_dataset('observations/depth_registered_right', data=np.stack(self.episode['depth_registered_right']), compression='gzip')
+                print(f"  Saved {len(self.episode['depth_registered_right'])} right depth frames")
+            
+            # Save terrain grids if available
             if self.episode['terrain_grids']:
                 f.create_dataset('observations/terrain_grids', data=np.stack(self.episode['terrain_grids']), compression='gzip')
-            if self.episode['obstacle_grids']:
-                f.create_dataset('observations/obstacle_grids', data=np.stack(self.episode['obstacle_grids']), compression='gzip')
+                f.attrs['terrain_grid_cell_size'] = 0.03  # meters per cell
+                print(f"  Saved {len(self.episode['terrain_grids'])} terrain height grids")
             
-            # Check for grid mismatch
-            n_obs = len(self.episode['timestamps'])
-            if len(self.episode['terrain_grids']) > 0 and len(self.episode['terrain_grids']) != n_obs:
-                 print(f"Warning: Grid count mismatch ({len(self.episode['terrain_grids'])} vs {n_obs})")
-
             # Scalars/Vectors
             f.create_dataset('observations/state', data=np.array(self.episode['states']))
             f.create_dataset('observations/velocities', data=np.array(self.episode['velocities']))
             f.create_dataset('actions', data=np.array(self.episode['actions']))
             f.create_dataset('observations/locomotion_mode', data=np.array(self.episode['locomotion_modes'], dtype=np.uint32))
             f.create_dataset('timestamps', data=np.array(self.episode['timestamps']))
+            
+            print(f"  Saved {len(self.episode['timestamps'])} steps total")
             
         print("Conversion Complete!")
 

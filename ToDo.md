@@ -87,13 +87,22 @@ Data collecting to Do:
 - test teleop with ps4 controller                                               CHECK
 - insert z height of robot body in data                                         CHECK (not possible via driver)
 - test recording loop with ps4 controller                                       CHECK
-- collect first full data rosbags                                               
-- look at obstacles for setup
-- add pillow to container.                                                         
+- collect first full data rosbags                                               CHECK
+- add pillow to container.                                                      CHECK 
+
+
+17/2 
+- look at obstacles for setup                                                   CHECK  
+- make first run                                                                CHECK
+- post process data to see if we have everything we need
+- check reward function                                                         CHECK
+- collision flag on recorder?                                                        
+- make 'delete' episode and continue button on recorder                         CHECK
+- see if we can replay the image to see what happens of an rosbag
+- check frequency of rosbags.                                                   CHECK  
 
 
 
-
-
-
+- include recording on joystick teleop
+- merge launch files
 

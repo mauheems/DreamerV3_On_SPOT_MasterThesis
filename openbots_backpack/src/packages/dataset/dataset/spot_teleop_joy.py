@@ -16,6 +16,8 @@ Mapping (Standard Linux Input):
         L3 (10)           -> SpeedSelectAmble (Mode 6)
         X (0)             -> Stand
         Circle (1)        -> Sit
+        Square (2)        -> Start/Stop Recording
+        Triangle (3)      -> Delete/Discard Recording
     
   D-Pad (Axes 6,7):
     Up (+1 on Ax7)    -> Trot (Mode 2)
@@ -24,6 +26,12 @@ Mapping (Standard Linux Input):
     Right (-1 on Ax6) -> SpeedSelectTrot (Mode 3)
 """
 
+import os
+import signal
+import subprocess
+import shutil
+import time
+from datetime import datetime
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
@@ -53,6 +61,8 @@ class SpotJoyTeleop(Node):
         self.btn_gait_speed_amble = 10  # L3 -> SpeedSelectAmble (6)
         self.btn_stand = 0      # X
         self.btn_sit = 1        # Circle
+        self.btn_record_toggle = 2  # Square -> Start/Stop Recording
+        self.btn_record_delete = 3  # Triangle -> Delete/Discard Recording
         
         # D-Pad is often axes 6/7 (unused for gait now)
         self.axis_dpad_x = 6    # L/R
@@ -65,6 +75,13 @@ class SpotJoyTeleop(Node):
         self.last_buttons = []
         self.last_axes = []
         
+        # Recording state
+        self.recording_process = None
+        self.is_recording = False
+        self.current_bag_name = None
+        self.output_dir = "/home/ob/openbots_ws/src/packages/dataset/recorded_data"
+        self.recorder_script = "/home/ob/openbots_ws/src/packages/dataset/episode_bag_recorder.py"
+        
         # --- Publishers/Subscribers ---
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.joy_sub = self.create_subscription(Joy, '/joy', self.joy_callback, 10)
@@ -74,8 +91,7 @@ class SpotJoyTeleop(Node):
         self.stand_client = self.create_client(Trigger, '/stand')
         self.locomotion_client = self.create_client(SetLocomotion, '/locomotion_mode')
         
-        self.get_logger().info('Spot Joy Teleop Node Started. Waiting for /joy messages...')
-        self.get_logger().info('Press X to Stand, O to Sit. L1/L2/R1/R2 select gaits.')
+        self.get_logger().info('Spot Joy Teleop Started - Square: record, Triangle: discard')
 
     def joy_callback(self, msg):
         # Initialize last state if empty
@@ -92,6 +108,16 @@ class SpotJoyTeleop(Node):
         twist.linear.y = float(msg.axes[self.axis_linear_y]) * self.linear_scale
         # Right stick left/right controls yaw; up/down is ignored (axis 3 is horizontal)
         twist.angular.z = float(msg.axes[self.axis_angular_z]) * self.angular_scale
+        
+        # Snap-to-forward zone: if moving mostly forward, ignore small lateral inputs
+        # to prevent joystick jitter from causing instability
+        # Tune these values to adjust the forward cone:
+        #   - forward_threshold: increase to make cone narrower (e.g., 0.7, 0.8)
+        #   - lateral_threshold: decrease to make cone narrower (e.g., 0.1, 0.15)
+        forward_threshold = 0.6   # Only apply snap if forward command > this
+        lateral_threshold = 0.2   # Only snap if lateral command < this
+        if abs(twist.linear.x) > forward_threshold and abs(twist.linear.y) < lateral_threshold:
+            twist.linear.y = 0.0  # Snap lateral movement to zero
         
         # Check if any movement is commanded
         has_movement = abs(twist.linear.x) > 0.01 or abs(twist.linear.y) > 0.01 or abs(twist.angular.z) > 0.01
@@ -134,40 +160,135 @@ class SpotJoyTeleop(Node):
         if msg.buttons[self.btn_gait_speed_amble] and not self.last_buttons[self.btn_gait_speed_amble]:
             self.set_locomotion(6, 'SpeedSelectAmble')
         
+        # --- Recording Controls ---
+        # Square: Start/Stop recording
+        if msg.buttons[self.btn_record_toggle] and not self.last_buttons[self.btn_record_toggle]:
+            self.toggle_recording()
+        
+        # Triangle: Delete/Discard recording
+        if msg.buttons[self.btn_record_delete] and not self.last_buttons[self.btn_record_delete]:
+            self.discard_recording()
+        
         # Update last state
         self.last_buttons = msg.buttons
         self.last_axes = msg.axes
 
     def call_trigger_service(self, client, name):
         if not client.service_is_ready():
-            self.get_logger().warn(f'{name} service not not available!')
+            self.get_logger().error(f'{name} service not available!')
             return
         
-        self.get_logger().info(f'Requesting: {name}...')
+        self.get_logger().info(f'{name}')
         future = client.call_async(Trigger.Request())
-        # We don't block here with spin_until_future_complete because we are inside a callback
         future.add_done_callback(lambda future: self.service_response_callback(future, name))
 
     def set_locomotion(self, mode_id, mode_name):
         if not self.locomotion_client.service_is_ready():
-            self.get_logger().warn('Locomotion service not available!')
+            self.get_logger().error('Locomotion service not available!')
             return
             
-        self.get_logger().info(f'Switching Gait to: {mode_name} ({mode_id})')
+        self.get_logger().info(f'Gait: {mode_name}')
         req = SetLocomotion.Request()
         req.locomotion_mode = mode_id
         future = self.locomotion_client.call_async(req)
-        future.add_done_callback(lambda future: self.service_response_callback(future, f'Set Locomotive {mode_name}'))
+        future.add_done_callback(lambda future: self.service_response_callback(future, f'Gait {mode_name}'))
     
     def service_response_callback(self, future, name):
         try:
             result = future.result()
-            self.get_logger().info(f'{name} Result: {result.message} (Success: {result.success})')
+            if not result.success:
+                self.get_logger().error(f'{name} failed: {result.message}')
         except Exception as e:
-            self.get_logger().error(f'{name} Service call failed: {e}')
+            self.get_logger().error(f'{name} error: {e}')
+    
+    def toggle_recording(self):
+        """Start or stop recording via joystick."""
+        if self.is_recording:
+            self.stop_recording()
+        else:
+            self.start_recording()
+    
+    def start_recording(self):
+        """Start a new recording episode."""
+        if self.is_recording:
+            self.get_logger().warn('Already recording!')
+            return
+        
+        # Generate bag name with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.current_bag_name = f"spot_bag_{timestamp}_joystick_collected"
+        
+        self.get_logger().info(f'Recording started: {self.current_bag_name}')
+        
+        topics = [
+            "/camera/frontmiddle_virtual/image",
+            "/depth_registered/frontleft/image",
+            "/depth_registered/frontright/image",
+            "/odometry",
+            "/cmd_vel",
+            "/status/mobility_params",
+            "/spot/local_grid/terrain",
+            "/spot/local_grid/obstacle_distance",
+            "/tf",
+            "/tf_static",
+        ]
+        
+        try:
+            os.makedirs(self.output_dir, exist_ok=True)
+            cmd = ["ros2", "bag", "record", "--output", os.path.join(self.output_dir, self.current_bag_name)] + topics
+            self.recording_process = subprocess.Popen(cmd)
+            self.is_recording = True
+        except Exception as e:
+            self.get_logger().error(f'Failed to start recording: {e}')
+            self.is_recording = False
+    
+    def stop_recording(self):
+        """Stop and save the current recording."""
+        if not self.is_recording:
+            self.get_logger().warn('No active recording!')
+            return
+        
+        self.get_logger().info(f'Recording saved: {self.current_bag_name}')
+        
+        if self.recording_process and self.recording_process.poll() is None:
+            self.recording_process.send_signal(signal.SIGINT)
+            try:
+                self.recording_process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                self.recording_process.kill()
+        
+        self.is_recording = False
+        self.current_bag_name = None
+    
+    def discard_recording(self):
+        """Stop recording and delete the episode without saving."""
+        if not self.is_recording:
+            self.get_logger().warn('No active recording to discard!')
+            return
+        
+        self.get_logger().info(f'Recording discarded: {self.current_bag_name}')
+        
+        # Stop the recording process
+        if self.recording_process and self.recording_process.poll() is None:
+            self.recording_process.send_signal(signal.SIGINT)
+            try:
+                self.recording_process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                self.recording_process.kill()
+        
+        # Delete the bag directory
+        if self.current_bag_name:
+            bag_path = os.path.join(self.output_dir, self.current_bag_name)
+            if os.path.exists(bag_path):
+                shutil.rmtree(bag_path)
+        
+        self.is_recording = False
+        self.current_bag_name = None
     
     def shutdown(self):
-        """Safety shutdown: stop movement and sit robot."""
+        """Safety shutdown: stop movement, sit robot, and stop recording."""
+        if self.is_recording:
+            self.stop_recording()
         print('\n⚠️  Teleop shutting down - Please manually sit the robot (press Circle/O)')
         print('   Or use: ros2 service call /sit std_srvs/srv/Trigger')
 

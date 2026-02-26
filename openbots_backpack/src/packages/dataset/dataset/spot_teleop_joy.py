@@ -38,6 +38,7 @@ from sensor_msgs.msg import Joy
 from geometry_msgs.msg import Twist
 from std_srvs.srv import Trigger
 from spot_msgs.srv import SetLocomotion
+from std_msgs.msg import Bool
 
 class SpotJoyTeleop(Node):
     def __init__(self):
@@ -74,16 +75,27 @@ class SpotJoyTeleop(Node):
         self.was_moving = False  # Track if robot was moving last callback
         self.last_buttons = []
         self.last_axes = []
+        self.dpad_down_pressed = False  # Track down arrow state for collision flag
         
         # Recording state
         self.recording_process = None
         self.is_recording = False
         self.current_bag_name = None
-        self.output_dir = "/home/ob/openbots_ws/src/packages/dataset/recorded_data"
         self.recorder_script = "/home/ob/openbots_ws/src/packages/dataset/episode_bag_recorder.py"
+        
+        # Declare ROS2 parameters for recording mode, difficulty, and output directory
+        self.declare_parameter('recording_mode', 'explore')
+        self.declare_parameter('recording_difficulty', 'medium')
+        self.declare_parameter('output_dir', '/media/external_drive/recorded_data')
+        
+        # Get parameter values
+        self.recording_mode = self.get_parameter('recording_mode').value
+        self.recording_difficulty = self.get_parameter('recording_difficulty').value
+        self.output_dir = self.get_parameter('output_dir').value
         
         # --- Publishers/Subscribers ---
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.collision_pub = self.create_publisher(Bool, '/collision_event', 10)
         self.joy_sub = self.create_subscription(Joy, '/joy', self.joy_callback, 10)
         
         # --- Service Clients ---
@@ -91,7 +103,7 @@ class SpotJoyTeleop(Node):
         self.stand_client = self.create_client(Trigger, '/stand')
         self.locomotion_client = self.create_client(SetLocomotion, '/locomotion_mode')
         
-        self.get_logger().info('Spot Joy Teleop Started - Square: record, Triangle: discard')
+        self.get_logger().info(f'Spot Joy Teleop Started - Mode: {self.recording_mode}, Difficulty: {self.recording_difficulty}')
 
     def joy_callback(self, msg):
         # Initialize last state if empty
@@ -160,6 +172,15 @@ class SpotJoyTeleop(Node):
         if msg.buttons[self.btn_gait_speed_amble] and not self.last_buttons[self.btn_gait_speed_amble]:
             self.set_locomotion(6, 'SpeedSelectAmble')
         
+        # --- Collision Event (D-Pad Down) ---
+        dpad_down = msg.axes[self.axis_dpad_y] < -0.5  # Down arrow pressed
+        if dpad_down and not self.dpad_down_pressed:
+            # Transition from not pressed to pressed - publish collision event
+            collision_msg = Bool(data=True)
+            self.collision_pub.publish(collision_msg)
+            self.get_logger().warn('⚠️  COLLISION DETECTED at timestep!')
+        self.dpad_down_pressed = dpad_down
+        
         # --- Recording Controls ---
         # Square: Start/Stop recording
         if msg.buttons[self.btn_record_toggle] and not self.last_buttons[self.btn_record_toggle]:
@@ -214,9 +235,11 @@ class SpotJoyTeleop(Node):
             self.get_logger().warn('Already recording!')
             return
         
-        # Generate bag name with timestamp
+        # Generate bag name with timestamp, mode, and difficulty
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.current_bag_name = f"spot_bag_{timestamp}_joystick_collected"
+        safe_mode = self.recording_mode.strip().lower().replace(" ", "-") or "unknown"
+        safe_difficulty = self.recording_difficulty.strip().lower().replace(" ", "-") or "unknown"
+        self.current_bag_name = f"spot_bag_{timestamp}_{safe_mode}_{safe_difficulty}"
         
         self.get_logger().info(f'Recording started: {self.current_bag_name}')
         
@@ -229,6 +252,7 @@ class SpotJoyTeleop(Node):
             "/status/mobility_params",
             "/spot/local_grid/terrain",
             "/spot/local_grid/obstacle_distance",
+            "/collision_event",
             "/tf",
             "/tf_static",
         ]

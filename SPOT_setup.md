@@ -70,13 +70,15 @@ This launches:
 
 ### Joystick Teleop (2nd terminal)
 
-To enable joystick control and data recording, run in a separate terminal (after the spot driver is running):
+To enable joystick control, run in a separate terminal (after the spot driver is running):
 
 ```bash
-ros2 run dataset spot_teleop_joy
+ros2 run dataset spot_teleop_joy --ros-args \
+  -p recording_mode:=expert \
+  -p recording_difficulty:=medium
 ```
 
-This will start accepting PS4 controller input for controlling the robot and recording data.
+This will start accepting PS4 controller input for controlling the robot. Recordings will be saved directly to the external 1TB drive mounted at `/media/external_drive/recorded_data`.
 
 **Joystick Controls:**
 - **Left Stick**: Forward/Backward movement
@@ -90,19 +92,46 @@ This will start accepting PS4 controller input for controlling the robot and rec
 - **L3**: SpeedSelectAmble gait
 - **Square button**: Start/Stop recording
 - **Triangle button**: Discard current recording (without saving)
-
-**Data Recording:**
-Recordings are saved automatically to `/home/ob/openbots_ws/src/packages/dataset/recorded_data/` when you press Square to stop recording. Press Triangle to discard the current recording without saving.
+- **D-Pad Down**: Mark collision event (flagged in rosbag)
 
 
+### Data Recording (3rd terminal)
 
+In another terminal, access the container:
 
+```bash
+docker exec -it openbots_container_new bash
+```
+
+Record sensor data:
+
+```bash
+python3 -m dataset.spot_data_recorder
+
+cd src/packages/dataset/
+python3 episode_bag_recorder.py
+```
+
+Record ROS2 bag:
+
+```bash
+ros2 bag record -a
+```
+
+# 3. After recording, convert the bag to HDF5
+python compute_rewards_batch.py --harddrive /media/external_drive
+
+cd ~/openbots_ws/src/packages/dataset/
+python3 convert_bag_to_hdf5.py
+
+python convert_bag_to_hdf5.py --batch --harddrive /media/external_drive/recorded_data
+
+python compute_rewards_batch.py --harddrive /media/external_drive
 ---
 
 ## 7. Spot WiFi Network Configuration
 
-On the **Spot admin pacd ~/openbots_ws/src/packages/dataset/
-python3 convert_bag_to_hdf5.pynel**:
+On the **Spot admin panel**:
 
 1. Go to **Admin Panel**
 2. Change the network name and password:

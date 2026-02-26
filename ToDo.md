@@ -94,15 +94,60 @@ Data collecting to Do:
 17/2 
 - look at obstacles for setup                                                   CHECK  
 - make first run                                                                CHECK
-- post process data to see if we have everything we need
 - check reward function                                                         CHECK
 - collision flag on recorder?                                                        
 - make 'delete' episode and continue button on recorder                         CHECK
-- see if we can replay the image to see what happens of an rosbag
 - check frequency of rosbags.                                                   CHECK  
 
 
+18/2:
+- include recording on joystick teleop                                          CHECK
+- merge launch files recording and joystick                                     CHECK
+- email bjorn GPU cluster                                                       CHECK
+- more data collecting                                                          CHECK
 
-- include recording on joystick teleop
-- merge launch files
+
+19/2
+- see if we can replay the image to see what happens of an rosbag               CHECK
+- post process data to see if we have everything we need                        CHECK
+    - normalize data (maybe reset everything before recording an episode.)                    
+
+
+20/2:
+- learn the AI cluster intro                                                    CHECK   
+
+
+23/2
+- check teleop + recorder.                                                      CHECK
+- see if we have to reinitiate the terrain height map client every recording    CHECK
+- check recording rate. Now it seems 3 Hz only?                                 CHECK
+    and fix it
+- collision detector by button??                                                CHECK
+
+24/2
+- preprocess data fully: gait one = gait two in data.                           CHECK
+
+25/2:
+- check spot env wrapper and rewards via gemini/chatgpt                         CHECK
+- call python train.py for cluster                                              CHECK
+- first training run complete                                                   CHECK
+
+
+26/2 
+- check hz of topics: ros2 topic hz /camera/frontmiddle_virtual/image
+- check node builds of terrain map and image stitcher
+- make very bad recording to amplify penalties and reward for testing
+- make the easiest perfect recording to amplify rewards (trot/crawl/velocitycommandmatch)
+- get rewards to line up with events                
+- retrieve password for DAIC
+
+27/2
+- how does the velocity command of trot 2m/s line up with velocity comman of crawal 1m/s
+- do the actions line up of dataset and spot.py, also gait selection -> def _action is not defined -> look at minecraft_base.py
+
+
+
+
+
+
 

@@ -19,8 +19,8 @@ class SpotLocalGridNode(Node):
         self.declare_parameter('spot_ip', os.environ.get('SPOT_IP', '192.168.10.102'))
         self.declare_parameter('spot_username', os.environ.get('BOSDYN_CLIENT_USERNAME', 'user'))
         self.declare_parameter('spot_password', os.environ.get('BOSDYN_CLIENT_PASSWORD', 'corspotuser1'))
-        self.declare_parameter('publish_frequency', 5.0)
-        self.declare_parameter('grid_types', ['terrain', 'obstacle_distance'])
+        self.declare_parameter('publish_frequency', 10.0)
+        self.declare_parameter('grid_types', ['terrain'])  # Only terrain (obstacle is redundant)
 
         self.spot_ip = self.get_parameter('spot_ip').value
         self.username = self.get_parameter('spot_username').value

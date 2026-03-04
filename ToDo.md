@@ -134,16 +134,26 @@ Data collecting to Do:
 
 
 26/2 
-- check hz of topics: ros2 topic hz /camera/frontmiddle_virtual/image
-- check node builds of terrain map and image stitcher
-- make very bad recording to amplify penalties and reward for testing
-- make the easiest perfect recording to amplify rewards (trot/crawl/velocitycommandmatch)
-- get rewards to line up with events                
-- retrieve password for DAIC
+- check hz of topics: ros2 topic hz /camera/frontmiddle_virtual/image           CHECK
+- check node builds of terrain map and image stitcher                           CHECK
+- make very bad recording to amplify penalties and reward for testing           CHECK
+- get rewards to line up with events                                            CHECK
 
 27/2
+- odometry speed is calculated in world frame!!! this is why velocity doesnt match commands.            CHECK
+
+
+2/3:
+- make a recording with all events
+    - gait switch
+    - quick straight part
+    - walk into an object for long period
+    - force imbalance on foam
+    - note down events
 - how does the velocity command of trot 2m/s line up with velocity comman of crawal 1m/s
-- do the actions line up of dataset and spot.py, also gait selection -> def _action is not defined -> look at minecraft_base.py
+- do the actions line up of dataset and spot.py, also gait selection -> def _action is not defined 
+    -> look at minecraft_base.py
+- retrieve password for DAIC
 
 
 

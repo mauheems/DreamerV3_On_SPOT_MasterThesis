@@ -23,7 +23,7 @@ import tty
 import termios
 from datetime import datetime
 
-OUTPUT_DIR = "/home/ob/openbots_ws/src/packages/dataset/recorded_data"
+OUTPUT_DIR = "/media/external_drive/recorded_data"
 TOPICS = [
     "/camera/frontmiddle_virtual/image",
     "/depth_registered/frontleft/image",

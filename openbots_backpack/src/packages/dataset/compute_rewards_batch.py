@@ -18,7 +18,7 @@ REWARD_PARAMS = {
     'jerk_scale': 0.01,
     'instability_scale': 0.02,
     'time_penalty': 0.01,
-    'velocity_error_scale': 0.01,
+    'velocity_error_scale': 0.04,
 }
 
 def compute_rewards_for_episode(states, actions, velocities, dt=0.1):
@@ -86,8 +86,27 @@ def compute_rewards_for_episode(states, actions, velocities, dt=0.1):
     
     # === Component 5: Velocity Alignment Penalty ===
     if velocities is not None and actions is not None:
-        velocity_errors = np.linalg.norm(velocities - actions, axis=1)
-        velocity_alignment_penalties = -velocity_error_scale * (velocity_errors ** 2)
+        # Compensate for known cmd->odom lag (1 sample) by shifting actions forward
+        lag = 1
+        sel = [0, 1, 5]  # vx, vy, wz
+
+        # Create shifted actions with NaN padding for edges
+        shifted_actions = np.full_like(actions, np.nan)
+        if lag == 0:
+            shifted_actions = actions
+        else:
+            shifted_actions[lag:] = actions[:-lag]
+
+        # Compute sum of squared errors only on selected axes where shifted action exists
+        act_sel = shifted_actions[:, sel]
+        vel_sel = velocities[:, sel]
+        valid_mask = ~np.isnan(act_sel).any(axis=1)
+
+        velocity_alignment_penalties = np.zeros(T, dtype=float)
+        if np.any(valid_mask):
+            diffs = vel_sel[valid_mask] - act_sel[valid_mask]
+            sum_sq = np.sum(diffs ** 2, axis=1)
+            velocity_alignment_penalties[valid_mask] = -velocity_error_scale * sum_sq
     else:
         velocity_alignment_penalties = np.zeros(T)
     
@@ -140,6 +159,8 @@ def process_episode_file(input_path, output_path):
                 f_out.create_dataset('rewards', data=rewards, dtype=np.float32)
                 f_out.attrs['rewards_computed'] = True
                 f_out.attrs['reward_components'] = 'goal_scaled, distance, jerk, instability, velocity_alignment, time'
+                # Record applied command->odom lag (samples) used when computing rewards
+                f_out.attrs['cmd_odom_lag_samples'] = 1
             
             print(f"  ✓ Computed {len(rewards)} rewards: range=[{rewards.min():.4f}, {rewards.max():.4f}], sum={rewards.sum():.4f}")
             return True

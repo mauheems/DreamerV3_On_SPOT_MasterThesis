@@ -455,8 +455,55 @@ class BagConverter:
                         print(f"  Saved {len(terrain_grids_normalized)} terrain height grids (normalized and resized to 64x64)")
 
                     # Scalars/Vectors
-                    f.create_dataset('observations/state', data=np.array(self.episode['states']))
-                    f.create_dataset('observations/velocities', data=np.array(self.episode['velocities']))
+                    # Save states and rotate velocities from world -> body frame using per-sample yaw
+                    states_arr = np.array(self.episode['states'])
+                    vel_arr = np.array(self.episode['velocities'])
+
+                    # Write states as-is
+                    f.create_dataset('observations/state', data=states_arr)
+
+                    # If states contain quaternions (qx,qy,qz,qw) rotate linear vx,vy into body frame
+                    try:
+                        if states_arr.ndim == 2 and states_arr.shape[1] >= 7 and vel_arr.ndim == 2 and vel_arr.shape[0] > 0:
+                            T = min(states_arr.shape[0], vel_arr.shape[0])
+                            q = states_arr[:T, 3:7]
+                            qx = q[:, 0]; qy = q[:, 1]; qz = q[:, 2]; qw = q[:, 3]
+                            # yaw from quaternion
+                            yaw = np.arctan2(2*(qw*qz + qx*qy), 1 - 2*(qy*qy + qz*qz))
+
+                            vwx_orig = vel_arr[:T, 0].astype(np.float32).copy()
+                            vwy_orig = vel_arr[:T, 1].astype(np.float32).copy() if vel_arr.shape[1] > 1 else np.zeros_like(vwx_orig)
+
+                            vbx = np.cos(yaw) * vwx_orig + np.sin(yaw) * vwy_orig
+                            vby = -np.sin(yaw) * vwx_orig + np.cos(yaw) * vwy_orig
+
+                            vel_rot = vel_arr.copy()
+                            vel_rot[:T, 0] = vbx
+                            if vel_rot.shape[1] > 1:
+                                vel_rot[:T, 1] = vby
+
+                            f.create_dataset('observations/velocities', data=vel_rot)
+
+                            # provenance
+                            f.attrs['velocities_frame'] = 'body'
+                            f.attrs['velocities_rotated_to_body'] = True
+                            f.attrs['velocities_rotated_by'] = 'convert_bag_to_hdf5.py'
+                            try:
+                                f.attrs['vx_mean_before'] = float(np.nanmean(vwx_orig))
+                                f.attrs['vx_frac_negative_before'] = float(np.sum(vwx_orig < 0) / float(len(vwx_orig)))
+                            except Exception:
+                                pass
+                        else:
+                            # No quaternion available — write velocities unchanged
+                            f.create_dataset('observations/velocities', data=vel_arr)
+                            f.attrs['velocities_frame'] = 'world'
+                            f.attrs['velocities_rotated_to_body'] = False
+                    except Exception as e:
+                        # On any error, fall back to writing original velocities
+                        print(f"Warning: unable to rotate velocities for {out_name}: {e}")
+                        f.create_dataset('observations/velocities', data=vel_arr)
+                        f.attrs['velocities_frame'] = 'world'
+                        f.attrs['velocities_rotated_to_body'] = False
                     f.create_dataset('actions', data=np.array(self.episode['actions']))
                     f.create_dataset('observations/locomotion_mode', data=np.array(self.episode['locomotion_modes'], dtype=np.uint32))
                     f.create_dataset('observations/collision_events', data=np.array(self.episode['collision_events'], dtype=bool))

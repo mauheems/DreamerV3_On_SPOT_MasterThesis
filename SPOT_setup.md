@@ -118,6 +118,15 @@ Record ROS2 bag:
 ros2 bag record -a
 ```
 
+
+mount harddrive:
+sudo mkdir -p /media/external_drive/recorded_data
+sudo chown -R $(id -u):$(id -g) /media/external_drive/recorded_data
+sudo chmod -R 775 /media/external_drive/recorded_data
+# quick test as the same user:
+touch /media/external_drive/recorded_data/test && echo OK || echo FAIL
+
+
 # 3. After recording, convert the bag to HDF5
 python compute_rewards_batch.py --harddrive /media/external_drive
 

@@ -1,0 +1,29 @@
+/**:
+  dreamer_policy_node:
+    ros__parameters:
+
+      # ── Checkpoint ─────────────────────────────────────────────────────────
+      # Change this path to switch between training sessions.
+      # The config.yaml next to the checkpoint is loaded automatically.
+      checkpoint_path: "/home/maurits-heemskerk/Documents/Uni/Master_Thesis/dreamer_results_local/dreamer-results-20260307-123116/checkpoint.ckpt"
+
+      # Optional override path to informed-dreamer root (folder containing dreamerv3/).
+      # Leave empty to auto-discover in common host/container locations.
+      # Example in docker: /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer
+      dreamerv3_root: ""
+
+      # ── Control ────────────────────────────────────────────────────────────
+      control_rate_hz: 10            # Hz; keep low — JAX inference on CPU
+      robot_name: "spot"
+
+      # ── Image dimensions (must match training data exactly) ────────────────
+      # Check the h5 files: f['observations/images_front'].shape[1:]
+      image_height: 64
+      image_width:  128
+
+      # ── Terrain tensor dimensions (must match training data exactly) ───────
+      # Deployment does not subscribe to terrain (privileged info).
+      # A zero tensor of this shape is fed to the policy for compatibility.
+      # Check training h5 files: f['observations/terrain_grids'].shape[1:3]
+      terrain_height: 40
+      terrain_width:  40

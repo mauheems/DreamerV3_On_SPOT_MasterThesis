@@ -55,9 +55,37 @@ RUN pip3 install --no-cache-dir \
     bosdyn-choreography-client==5.0.0 \
     aiortc \
     h5py>=3.6.0 \
-    Pillow \
+    Pillow==12.1.1 \
     "numpy<2.0" \
     "opencv-python<4.10"
+
+# DreamerV3 / JAX inference dependencies
+# Pin to a ROS-compatible stack:
+# - NumPy 1.x is required by cv_bridge/spot_driver and old transforms3d usage.
+# - Newer JAX builds may assume newer NumPy APIs and fail at import time.
+# - TensorFlow 2.11.x in this image requires protobuf<3.20.
+RUN pip3 install --no-cache-dir \
+    "numpy==1.23.5" \
+    "jax==0.4.17" \
+    "jaxlib==0.4.17" \
+    "optax==0.1.7" \
+    "ruamel.yaml" \
+    "tensorflow_probability==0.23.0" \
+    "protobuf==3.19.6" \
+    rich \
+    cloudpickle
+
+# Smoke-test core ML imports at build time so version conflicts fail early.
+RUN python3 - <<'PY'
+import numpy
+import jax
+import tensorflow_probability as tfp
+from tensorflow_probability.substrates import jax as tfp_jax
+print('numpy', numpy.__version__)
+print('jax', jax.__version__)
+print('tfp', tfp.__version__)
+print('tfp_jax', getattr(tfp_jax, '__name__', 'ok'))
+PY
 
 COPY fix_hosts.sh /usr/local/bin/fix_hosts.sh
 RUN chmod +x /usr/local/bin/fix_hosts.sh

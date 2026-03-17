@@ -185,9 +185,11 @@ class BagConverter:
         }
 
     def _process_cmd(self, msg):
+        # Return only first 4 dimensions: [linear.x, linear.y, linear.z, gait_selection]
+        # Truncate from 6D to 4D to match environment action space
         return np.array([
             msg.linear.x, msg.linear.y, msg.linear.z,
-            msg.angular.x, msg.angular.y, msg.angular.z
+            msg.angular.x  # Only first angular component (gait selection)
         ], dtype=np.float32)
 
     def _process_mobility_params(self, msg):
@@ -230,11 +232,11 @@ class BagConverter:
             self.episode['states'].append(np.zeros(7, dtype=np.float32))
             self.episode['velocities'].append(np.zeros(6, dtype=np.float32))
 
-        # 3. Action
+        # 3. Action (4D: [vx, vy, vz, wz])
         if self.latest['/cmd_vel'] is not None:
             self.episode['actions'].append(self.latest['/cmd_vel'])
         else:
-            self.episode['actions'].append(np.zeros(6, dtype=np.float32))
+            self.episode['actions'].append(np.zeros(4, dtype=np.float32))
 
         # 4. Locomotion mode
         if self.latest['/status/mobility_params'] is not None:

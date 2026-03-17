@@ -88,7 +88,7 @@ def compute_rewards_for_episode(states, actions, velocities, dt=0.1):
     if velocities is not None and actions is not None:
         # Compensate for known cmd->odom lag (1 sample) by shifting actions forward
         lag = 1
-        sel = [0, 1, 5]  # vx, vy, wz
+        sel = [0, 1, 3]  # vx, vy, wz (4-element action space)
 
         # Create shifted actions with NaN padding for edges
         shifted_actions = np.full_like(actions, np.nan)

@@ -35,7 +35,7 @@ Data collecting to Do:
     - otherwise go with depth map
 
 
-- first data runl
+- first data runl       
 - use fiducials to walk around  
 - check position odometry accuracy                                                                  CHECK
 - find gait commands service                                                                        CHECK
@@ -144,20 +144,71 @@ Data collecting to Do:
 
 
 2/3:
-- make a recording with all events
+
+- how does the velocity command of trot 2m/s line up with velocity comman of crawl 1m/s                 CHECK
+- do the actions line up of dataset and spot.py, also gait selection -> def _action is not defined      CHECK
+    -> look at minecraft_base.py
+
+
+3/3:
+vragen:
+- retrieve password for DAIC                                                                            CHECK
+- write methodology                                                                                     CHECK
+
+6/3:
+- First DAIC training                                                           CHECK
+
+9/3:
+- make a recording with all events                                             CHECK
     - gait switch
     - quick straight part
     - walk into an object for long period
     - force imbalance on foam
     - note down events
-- how does the velocity command of trot 2m/s line up with velocity comman of crawal 1m/s
-- do the actions line up of dataset and spot.py, also gait selection -> def _action is not defined 
-    -> look at minecraft_base.py
-- retrieve password for DAIC
+- make as many data as possible                                                CHECK
+- start training with no priviliged info                                       CHECK 
+- redownload docker image spot driver/Pillow/scipy                             CHECK
+
+10/3:
+- put image through encoder                                                    CHECK
+- compare training runs informed/           uninformed                                    CHECK
+- see if terrain can be decoded from latent state                                       CHECK
+- look at feedback paper                                                                CHECK
+
+16/3:
+- test deployment logic                                         CHECK
+- deploy a policy on the spot                                   CHECK
+- write some paper
+- add improvements to training cycle
+- set gait command to trot and crawl                            CHECK
+- check why uninformed works as expected but informed not       CHECK
+- check if raw odometry is world frame                          CHECK
+
+17/3:
+- decode images of uninformed and informed to see difference. we need to see world model. CHECK
+- check if info_terrain can be observation space without 'info_' tag        CHECK
+- check if informed terrain map goes through decoder fine.                      CHECK
+-
+
+
+20/3:
+- put raw dataset on daic
+- correct paper
 
 
 
+Suggestions for improvement of offline dreamer:
+- penalize the values of states that the World Model hasn't seen in the dataset. (vel too high)
+    - normalize velocity and orientation to valid scales.
+- data augmentation
+- penalize action if its too far away from what the data did (conversatism)
+- loss scaling -> we have 6 loss heads of which 1 image which needs the most gradients CHECK
+- since we are giving the goal position relative to the robot frame our position and orientation in world frame are redundant as observations and possible causing error for the networl
 
-
-
-
+Suggestions for results:
+- to proof image/terrain as observations enable meaningful information. run the training without images and show performance drop.!!
+- to prove it has better policy performance we need to test in actual environment succes rate.
+    - policy with and without images/terrain
+    - policy and mask the images to see performance drop
+    - policy testen op andere ondergrond als foam
+- 

@@ -47,6 +47,16 @@ class BagConverter:
         self.target_freq = target_freq  # Default: 5 Hz (limited by camera hardware on SPOT)
         self.bridge = CvBridge()
         
+        # Gait mode normalization mapping
+        self.mode_mapping = {
+            4: 0,   # HINT_CRAWL
+            10: 0,  # HINT_SPEED_SELECT_CRAWL
+            1: 1,   # HINT_AUTO (converges to trot)
+            2: 1,   # HINT_TROT
+            3: 1,   # HINT_SPEED_SELECT_TROT
+            6: 1,   # HINT_SPEED_SELECT_AMBLE
+        }
+        
         # Buffer for latest messages
         self.latest = {
             '/camera/frontmiddle_virtual/image': None,
@@ -63,8 +73,6 @@ class BagConverter:
         # Episode storage
         self.episode = {
             'images_front': [],           # Stitched front camera
-            'depth_registered_left': [],  # Left depth
-            'depth_registered_right': [], # Right depth
             'terrain_grids': [],          # Terrain height grids
             'states': [],                 # [pos+orient]
             'velocities': [],             # [linear+angular]
@@ -93,7 +101,9 @@ class BagConverter:
             conn.close()
             return
         
-        print(f"Found {len(topics)} topics")
+        print(f"Found {len(topics)} topics:")
+        for topic_id, topic_info in topics.items():
+            print(f"  - {topic_info['name']} ({topic_info['type']})")
         
         # Query messages ordered by timestamp
         cursor.execute("SELECT topic_id, timestamp, data FROM messages ORDER BY timestamp")
@@ -176,6 +186,7 @@ class BagConverter:
         pos = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
         quat = [msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w]
         
+        # Extract world-frame velocities from odometry
         lin = [msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.linear.z]
         ang = [msg.twist.twist.angular.x, msg.twist.twist.angular.y, msg.twist.twist.angular.z]
         
@@ -185,11 +196,12 @@ class BagConverter:
         }
 
     def _process_cmd(self, msg):
-        # Return only first 4 dimensions: [linear.x, linear.y, linear.z, gait_selection]
-        # Truncate from 6D to 4D to match environment action space
+        # Return only first 3 dimensions: [linear.x, linear.y, angular.z]
+        # Gait selection will be added separately from mobility_params
         return np.array([
-            msg.linear.x, msg.linear.y, msg.linear.z,
-            msg.angular.x  # Only first angular component (gait selection)
+            msg.linear.x,     # vx
+            msg.linear.y,     # vy
+            msg.angular.z     # vyaw
         ], dtype=np.float32)
 
     def _process_mobility_params(self, msg):
@@ -205,20 +217,7 @@ class BagConverter:
             
         self.episode['images_front'].append(self.latest['/camera/frontmiddle_virtual/image'])
         
-        # 2. Registered depth maps
-        if self.latest['/depth_registered/frontleft/image'] is not None:
-            self.episode['depth_registered_left'].append(self.latest['/depth_registered/frontleft/image'])
-        else:
-            # Placeholder if missing
-            self.episode['depth_registered_left'].append(np.zeros((64, 64), dtype=np.uint8))
-        
-        if self.latest['/depth_registered/frontright/image'] is not None:
-            self.episode['depth_registered_right'].append(self.latest['/depth_registered/frontright/image'])
-        else:
-            # Placeholder if missing
-            self.episode['depth_registered_right'].append(np.zeros((64, 64), dtype=np.uint8))
-        
-        # 3. Terrain grid (if available)
+        # 2. Terrain grid (if available)
         if self.latest['/spot/local_grid/terrain'] is not None:
             self.episode['terrain_grids'].append(self.latest['/spot/local_grid/terrain'])
         
@@ -232,11 +231,11 @@ class BagConverter:
             self.episode['states'].append(np.zeros(7, dtype=np.float32))
             self.episode['velocities'].append(np.zeros(6, dtype=np.float32))
 
-        # 3. Action (4D: [vx, vy, vz, wz])
-        if self.latest['/cmd_vel'] is not None:
-            self.episode['actions'].append(self.latest['/cmd_vel'])
-        else:
-            self.episode['actions'].append(np.zeros(4, dtype=np.float32))
+        # 3. Action (4D: [vx, vy, vyaw, gait_selection])
+        vel_cmd = self.latest['/cmd_vel'] if self.latest['/cmd_vel'] is not None else np.zeros(3, dtype=np.float32)
+        gait = float(self.latest['/status/mobility_params']) if self.latest['/status/mobility_params'] is not None else 1.0
+        action = np.concatenate([vel_cmd, [gait]]).astype(np.float32)
+        self.episode['actions'].append(action)
 
         # 4. Locomotion mode
         if self.latest['/status/mobility_params'] is not None:
@@ -257,72 +256,41 @@ class BagConverter:
         - 1: TROT variants (modes 1, 2, 3, 6) - includes AUTO, TROT, SPEED_SELECT_TROT, SPEED_SELECT_AMBLE
         """
         normalized = []
-        mode_mapping = {
-            4: 0,   # HINT_CRAWL
-            10: 0,  # HINT_SPEED_SELECT_CRAWL
-            1: 1,   # HINT_AUTO (converges to trot)
-            2: 1,   # HINT_TROT
-            3: 1,   # HINT_SPEED_SELECT_TROT
-            6: 1,   # HINT_SPEED_SELECT_AMBLE
-        }
         
         for mode in self.episode['locomotion_modes']:
-            normalized.append(mode_mapping.get(mode, 1))  # Default to trot for unknown modes
+            normalized.append(self.mode_mapping.get(mode, 1))  # Default to trot for unknown modes
         
         self.episode['locomotion_modes'] = normalized
+
+    def _normalize_action_gait_selection(self):
+        """
+        Normalize the gait selection component (index 3) of all actions to binary classification.
+        """
+        normalized_actions = []
+        for action in self.episode['actions']:
+            normalized_action = action.copy()
+            gait_val = int(action[3]) if len(action) > 3 else 0
+            normalized_action[3] = self.mode_mapping.get(gait_val, 1)  # Default to trot for unknown modes
+            normalized_actions.append(normalized_action)
+        
+        self.episode['actions'] = normalized_actions
 
     def _normalize_images(self):
         """
         Normalize images to [0, 1] range.
         RGB images: divide by 255
-        Depth maps: already small values, but normalize by max depth (assume max ~10m)
         """
         # Normalize front RGB images
-        if self.episode['images_front']:
-            images_front_normalized = []
-            for img in self.episode['images_front']:
-                if img.dtype == np.uint8:
-                    img_norm = img.astype(np.float32) / 255.0
-                else:
-                    img_norm = img.astype(np.float32)
-                images_front_normalized.append(img_norm)
-            self.episode['images_front'] = images_front_normalized
-        
-        # Normalize depth maps
-        if self.episode['depth_registered_left']:
-            depth_left_normalized = []
-            for depth in self.episode['depth_registered_left']:
-                if depth.dtype == np.uint8:
-                    depth_norm = depth.astype(np.float32) / 255.0
-                elif depth.dtype == np.uint16:
-                    # Assuming 16-bit depth in millimeters, convert to meters then normalize
-                    depth_norm = (depth.astype(np.float32) / 1000.0) / 10.0  # normalize by 10m
-                else:
-                    depth_norm = depth.astype(np.float32)
-                depth_left_normalized.append(depth_norm)
-            self.episode['depth_registered_left'] = depth_left_normalized
-        
-        if self.episode['depth_registered_right']:
-            depth_right_normalized = []
-            for depth in self.episode['depth_registered_right']:
-                if depth.dtype == np.uint8:
-                    depth_norm = depth.astype(np.float32) / 255.0
-                elif depth.dtype == np.uint16:
-                    depth_norm = (depth.astype(np.float32) / 1000.0) / 10.0
-                else:
-                    depth_norm = depth.astype(np.float32)
-                depth_right_normalized.append(depth_norm)
-            self.episode['depth_registered_right'] = depth_right_normalized
+        # NOTE: Front images are intentionally kept as uint8 [0, 255] to save disk space
+        # and prevent precision loss when converted back to uint8 in the env wrapper.
 
     def _filter_mismatched_shapes(self):
-        """Remove frames where sensor data has inconsistent shapes."""
+        """Align all arrays to the same length."""
         n_frames = len(self.episode['timestamps'])
         
         # Ensure all lists are the same length (pad or trim as needed)
         min_len = min(
             len(self.episode['images_front']),
-            len(self.episode['depth_registered_left']),
-            len(self.episode['depth_registered_right']),
             len(self.episode['terrain_grids']),
             len(self.episode['states']),
             len(self.episode['velocities']),
@@ -338,39 +306,49 @@ class BagConverter:
                 self.episode[key] = self.episode[key][:min_len]
         
         print(f"Aligned all arrays to length {min_len}")
-        
-        # Now filter for left != right mismatch
-        valid_indices = []
-        for i in range(min_len):
-            left_shape = self.episode['depth_registered_left'][i].shape
-            right_shape = self.episode['depth_registered_right'][i].shape
-            if left_shape == right_shape:
-                valid_indices.append(i)
-            else:
-                print(f"  Frame {i}: depth mismatch (L:{left_shape} vs R:{right_shape})")
-        
-        if len(valid_indices) < min_len:
-            print(f"Pass 1 filtering: {min_len} → {len(valid_indices)} frames (removed L!=R mismatches)")
-            for key in self.episode:
-                if isinstance(self.episode[key], list):
-                    self.episode[key] = [self.episode[key][i] for i in valid_indices]
-            min_len = len(valid_indices)
-        
-        # Now filter for consistent depth shape
-        if min_len > 0:
-            depth_shapes = [self.episode['depth_registered_left'][i].shape for i in range(min_len)]
+
+    def _zero_center_trajectory(self):
+        """
+        Zero-centers the trajectory:
+        - Makes the initial position (0,0,0)
+        - Rotates all positions so the initial yaw is 0 (facing +X)
+        - Adjusts all quaternions accordingly
+        - Rotates velocities to stay consistent with the new frame
+        """
+        if not self.episode['states']:
+            return
             
-            from collections import Counter
-            shape_counts = Counter(depth_shapes)
-            most_common_shape = shape_counts.most_common(1)[0][0]
+        states = np.array(self.episode['states'])
+        velocities = np.array(self.episode['velocities'])
+        pos0 = states[0, :3].copy()
+        q0 = states[0, 3:7].copy()
+        
+        from scipy.spatial.transform import Rotation as R
+        # ZYX order corresponds to [yaw, pitch, roll]
+        yaw0 = R.from_quat(q0).as_euler('zyx')[0]
+        inv_yaw_rot = R.from_euler('z', -yaw0)
+        
+        new_states = []
+        for state in states:
+            new_pos = inv_yaw_rot.apply(state[:3] - pos0)
+            new_quat = (inv_yaw_rot * R.from_quat(state[3:7])).as_quat()
+            new_states.append(np.concatenate([new_pos, new_quat]).astype(np.float32))
+        
+        # Also rotate velocities to stay consistent with the new frame
+        new_velocities = []
+        for vel in velocities:
+            # Extract linear and angular components
+            v_lin = vel[:3]
+            v_ang = vel[3:6]
             
-            valid_indices = [i for i in range(min_len) if self.episode['depth_registered_left'][i].shape == most_common_shape]
+            # Rotate both linear and angular velocity components by inv_yaw_rot
+            new_v_lin = inv_yaw_rot.apply(v_lin)
+            new_v_ang = inv_yaw_rot.apply(v_ang)
             
-            if len(valid_indices) < min_len:
-                print(f"Pass 2 filtering: {min_len} → {len(valid_indices)} frames (kept shape {most_common_shape})")
-                for key in self.episode:
-                    if isinstance(self.episode[key], list):
-                        self.episode[key] = [self.episode[key][i] for i in valid_indices]
+            new_velocities.append(np.concatenate([new_v_lin, new_v_ang]).astype(np.float32))
+            
+        self.episode['states'] = new_states
+        self.episode['velocities'] = new_velocities
 
     def _write_hdf5(self):
         if not self.episode['timestamps']:
@@ -385,6 +363,12 @@ class BagConverter:
         
         # Normalize locomotion modes to binary classification
         self._normalize_locomotion_modes()
+        
+        # Normalize gait selection in action vectors to binary classification
+        self._normalize_action_gait_selection()
+        
+        # Zero-center trajectory to align initial position and yaw
+        self._zero_center_trajectory()
         
         if not self.episode['timestamps']:
             print("No valid frames after filtering!")
@@ -423,19 +407,6 @@ class BagConverter:
                         f.attrs['images_front_resized'] = True
                         f.attrs['images_front_shape'] = '(128, 49, 3)'
                         print(f"  Saved {len(resized_images)} stitched front images (resized to 128x49)")
-
-                    # Save registered depth maps (stereo pair)
-                    if self.episode['depth_registered_left']:
-                        f.create_dataset('observations/depth_registered_left', data=np.stack(self.episode['depth_registered_left']), compression='gzip')
-                        f.attrs['depth_registered_left_normalized'] = True
-                        f.attrs['depth_registered_left_range'] = '[0, 1] (normalized by 10m max)'
-                        print(f"  Saved {len(self.episode['depth_registered_left'])} left depth frames (normalized)")
-
-                    if self.episode['depth_registered_right']:
-                        f.create_dataset('observations/depth_registered_right', data=np.stack(self.episode['depth_registered_right']), compression='gzip')
-                        f.attrs['depth_registered_right_normalized'] = True
-                        f.attrs['depth_registered_right_range'] = '[0, 1] (normalized by 10m max)'
-                        print(f"  Saved {len(self.episode['depth_registered_right'])} right depth frames (normalized)")
 
                     # Save terrain grids if available (normalize per-frame: ground level = 0, then resize to 64x64)
                     if self.episode['terrain_grids']:

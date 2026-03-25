@@ -120,7 +120,7 @@ ros2 bag record -a
 
 
 mount harddrive:
-sudo mkdir -p /media/external_drive/recorded_data
+sudo mkdir -p /media/maurits/recorded_data
 sudo chown -R $(id -u):$(id -g) /media/external_drive/recorded_data
 sudo chmod -R 775 /media/external_drive/recorded_data
 # quick test as the same user:
@@ -128,8 +128,6 @@ touch /media/external_drive/recorded_data/test && echo OK || echo FAIL
 
 
 # 3. After recording, convert the bag to HDF5
-python compute_rewards_batch.py --harddrive /media/external_drive
-
 cd ~/openbots_ws/src/packages/dataset/
 python3 convert_bag_to_hdf5.py
 
@@ -152,3 +150,59 @@ On the **Spot admin panel**:
 
 3. Connect both the Spot and your PC to the new WiFi network
 
+
+
+# DAIC 
+## upload data to DAIC from harddrive:
+
+rsync -avz --progress --partial --append-verify --no-perms -e "ssh -J mjheemskerk@student-linux.tudelft.nl" /media/maurits-heemskerk/69987a47-b840-4db7-9f8b-7cc05f14d09e3/processed_data_with_rewards mjheemskerk@login.daic.tudelft.nl:/tudelft.net/staff-umbrella/openbots/mjheemskerk/spot_data
+
+
+## build apptainer: 
+apptainer build   --tmpdir /media/maurits-heemskerk/69987a47-b840-4db7-9f8b-7cc05f14d09e2/tmp   /media/maurits-heemskerk/69987a47-b840-4db7-9f8b-7cc05f14d09e2/dreamer_spot.sif   docker-daemon://dreamer_spot_cuda12:latest
+
+## copy apptainer to DAIC
+rsync -avz --progress   /media/maurits-heemskerk/69987a47-b840-4db7-9f8b-7cc05f14d09e2/dreamer_spot.sif   mjheemskerk@login.daic.tudelft.nl:/home/nfs/mjheemskerk/
+
+
+## sinteractive:
+sinteractive --mem=96G --nodes=1 --ntasks=1 --gres=gpu:1 --cpus-per-task=8 --time=4:00:00 
+
+## run training in sinteractive: 
+apptainer exec --cleanenv --nv \
+  -B /home/nfs/mjheemskerk:/mnt/home \
+  -B /tudelft.net:/tudelft.net \
+  --env PYTHONNOUSERSITE=1,PYTHONPATH= \
+  /tudelft.net/staff-umbrella/openbots/mjheemskerk/dreamer_spotv5.sif \
+  python3 /mnt/home/Master_thesis_DAIC_code/dreamerv3/train.py \
+    --logdir /mnt/home/logdir/test_run \
+    --configs spot \
+    --task spot_nav \
+    --jax.platform gpu \
+    --jax.prealloc False \
+    --data_loaders 1 \
+    --batch_size 2 \
+    --batch_length 8 \
+    --replay_size 2e4 \
+    --envs.amount 1 \
+    --run.train_ratio 16 \
+    --env.spot.data_dir=/tudelft.net/staff-umbrella/openbots/mjheemskerk/spot_data/processed_data_with_rewards
+
+
+## pull logdir files from training to local: 
+rsync -avz --progress --exclude='replay' \
+  daic:/home/nfs/mjheemskerk/logdir/dreamer-results-20260310-160927 \
+  /home/maurits-heemskerk/Documents/Uni/Master_Thesis/dreamer_results_local/
+
+## push results directory back to DAIC logdir:
+rsync -avz --progress --exclude='replay' \
+  /home/maurits-heemskerk/Documents/Uni/Master_Thesis/dreamer_results_local/dreamer-results-YYYYMMDD-HHMMSS-label \
+  daic:/home/nfs/mjheemskerk/logdir/
+
+
+## run policy:
+
+ros2 launch dreamer_deployment dreamer_deployment.launch.py   checkpoint_path:=/home/ob/dreamer_results_local/dreamer-results-20260316-104505-informedlargeRSSM/checkpoint.ckpt
+
+# with target goal (x/y are RELATIVE to robot's current position)
+ros2 topic pub --once /spot/policy/goal   geometry_msgs/msg/PointStamped   "{header: {frame_id: 'odom'}, point: {x: 2.0, y: 0.0, z: 0.0}}"

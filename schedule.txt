@@ -23,8 +23,8 @@ May 6th to May 25
                    Jan 15   Feb 1     Feb 15     Mar 1   Mar 15     Apr 1     Apr 15     May 1    May 15    June 1   June 15    DONE
                     |---------|---------|---------|---------|---------|---------|---------|---------|---------|---------|---------|
 data collection:            [##############.....]
-world model train:                     [....###.................]
-actor critic train:                        [...##########################...]
+world model train:                             [....####################.......]
+actor critic train:                            [...#########################...]
 results/finetune:                                                       [...#################...]
 writing paper:                                                                             [##############]
 greenlight meeting:                                                                                       [####]

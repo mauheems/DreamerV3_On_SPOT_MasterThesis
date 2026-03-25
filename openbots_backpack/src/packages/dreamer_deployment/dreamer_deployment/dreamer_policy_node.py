@@ -13,8 +13,8 @@ Publishes:
 Calls service:
   /locomotion_mode                   → gait selection decoded from policy action[3]
 
-Exposes service:
-  /spot/policy/set_goal              → set goal waypoint (x, y in world frame)
+Subscribes to:
+  /spot/policy/goal  (geometry_msgs/PointStamped) → set goal waypoint (x, y in world frame)
 
 The policy is a trained DreamerV3 JAX agent. Its RSSM maintains internal recurrent
 state between steps — no manual history buffer is needed.
@@ -42,23 +42,14 @@ from rclpy.node import Node
 
 from sensor_msgs.msg import Image
 from nav_msgs.msg import Odometry, OccupancyGrid
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PointStamped
 from std_msgs.msg import Float32MultiArray
 from cv_bridge import CvBridge
 
 from spot_msgs.srv import SetLocomotion  # type: ignore
 
-# Custom goal service (defined in this package's srv/)
-# Imported after ROS is initialised; falls back to std_srvs/Trigger if not built yet.
-try:
-    from dreamer_deployment.srv import SetGoalWaypoint
-    _GOAL_SRV_TYPE = SetGoalWaypoint
-except ImportError:
-    from std_srvs.srv import Trigger
-    _GOAL_SRV_TYPE = Trigger
-
 # Locomotion hint values (Boston Dynamics)
-_HINT_AUTO  = 1   # action[3] <= 0 → slower, safer, auto-select gait
+_HINT_CRAWL = 4   # action[3] <= 0 → slower crawl gait
 _HINT_TROT  = 2   # action[3]  > 0 → faster trot gait
 
 
@@ -91,6 +82,12 @@ class DreamerPolicyNode(Node):
         # Terrain grid dimensions must match training data exactly.
         self.declare_parameter('terrain_height', 40)
         self.declare_parameter('terrain_width',  40)
+        
+        # TEMPORARY DEBUG: set to true to flip goal_rel sign to test if inverse model
+        self.declare_parameter('invert_goal_sign', False)
+        
+        # TEMPORARY DEBUG: set to true to flip action[0] (forward/backward) sign
+        self.declare_parameter('invert_action_x_sign', False)
 
         checkpoint_path  = self.get_parameter('checkpoint_path').value
         control_rate_hz  = self.get_parameter('control_rate_hz').value
@@ -100,6 +97,8 @@ class DreamerPolicyNode(Node):
         self._img_w      = self.get_parameter('image_width').value
         self._ter_h      = self.get_parameter('terrain_height').value
         self._ter_w      = self.get_parameter('terrain_width').value
+        self._invert_goal_sign = self.get_parameter('invert_goal_sign').value
+        self._invert_action_x_sign = self.get_parameter('invert_action_x_sign').value
 
         self.get_logger().info('=== Dreamer Policy Node ===')
         self.get_logger().info(f'  Checkpoint : {checkpoint_path}')
@@ -119,6 +118,7 @@ class DreamerPolicyNode(Node):
         # Goal in world frame; set via /spot/policy/set_goal service
         self._goal_world         = None   # np.float32 (2,) — [x, y]
         self._is_first_step      = True   # tells RSSM this is the start of an episode
+        self._step_counter       = 0      # for throttled logging
 
         # ============ DREAMER AGENT ============
         self._agent    = None
@@ -158,13 +158,16 @@ class DreamerPolicyNode(Node):
         # ============ SERVICE CLIENTS ============
         self._locomotion_client = self.create_client(SetLocomotion, '/locomotion_mode')
 
-        # ============ GOAL SERVICE ============
-        self.create_service(
-            _GOAL_SRV_TYPE,
-            '/spot/policy/set_goal',
-            self._set_goal_callback,
+        # ============ GOAL TOPIC ============
+        # Publish a goal with: ros2 topic pub --once /spot/policy/goal \
+        #   geometry_msgs/msg/PointStamped "{header: {frame_id: 'odom'}, point: {x: 2.0, y: 0.0, z: 0.0}}"
+        self.create_subscription(
+            PointStamped,
+            '/spot/policy/goal',
+            self._goal_callback,
+            10,
         )
-        self.get_logger().info('Goal service ready at /spot/policy/set_goal')
+        self.get_logger().info('Goal topic ready at /spot/policy/goal')
 
         # ============ CONTROL LOOP ============
         self._control_timer = self.create_timer(
@@ -234,6 +237,9 @@ class DreamerPolicyNode(Node):
             self._agent = dreamerv3.Agent(obs_space, act_space, step, config)
 
             # ── Restore weights ───────────────────────────────────────────────
+            # Inject optax.transforms shim: checkpoints pickled with older optax
+            # reference 'optax.transforms' which no longer exists as a submodule.
+            self._patch_optax_transforms()
             checkpoint = embodied.Checkpoint()
             checkpoint.agent = self._agent
             checkpoint.load(str(checkpoint_path), keys=['agent'])
@@ -245,14 +251,65 @@ class DreamerPolicyNode(Node):
             import traceback
             self.get_logger().error(traceback.format_exc())
 
+    def _patch_optax_transforms(self):
+        """
+        Install an import hook that satisfies any 'optax.transforms.*' import.
+
+        Checkpoints pickled with older optax contain references to private
+        sub-modules like 'optax.transforms._conditionality' that no longer exist.
+        pickle.loads() calls Python's import machinery directly, so a simple
+        module-attribute shim is not enough — we need a meta-path finder that
+        intercepts those imports and returns a proxy pointing back to optax.
+        """
+        import types
+        import importlib.abc
+        import importlib.machinery
+
+        try:
+            import optax
+        except ImportError:
+            self.get_logger().warn('optax not importable — skipping shim.')
+            return
+
+        if 'optax.transforms' in sys.modules:
+            return  # already patched
+
+        class _OptaxTransformsFinder(importlib.abc.MetaPathFinder):
+            """Intercept any import whose name starts with 'optax.transforms'."""
+
+            def find_spec(self, fullname, path, target=None):
+                if not fullname.startswith('optax.transforms'):
+                    return None
+                loader = _OptaxTransformsLoader()
+                return importlib.machinery.ModuleSpec(fullname, loader)
+
+        class _OptaxTransformsLoader(importlib.abc.Loader):
+            def create_module(self, spec):
+                if spec.name in sys.modules:
+                    return sys.modules[spec.name]
+                mod = types.ModuleType(spec.name)
+                # Forward attribute lookups to top-level optax.
+                mod.__getattr__ = lambda name: getattr(optax, name, None)
+                sys.modules[spec.name] = mod
+                return mod
+
+            def exec_module(self, module):
+                pass  # nothing to execute; attributes come via __getattr__
+
+        sys.meta_path.insert(0, _OptaxTransformsFinder())
+        self.get_logger().info('Installed optax.transforms import hook.')
+
     def _ensure_dreamerv3_on_path(self, checkpoint_path: str):
         """Add plausible dreamerv3 source roots to sys.path for container and host layouts."""
-        # Already importable -> nothing to do.
-        try:
-            importlib.import_module('dreamerv3')
-            return
-        except Exception:
-            pass
+        # If no explicit root is set, check if dreamerv3 is already importable.
+        # Skip the early-return when an explicit root is provided — we must ensure
+        # the correct version wins even if an incompatible installed copy exists.
+        if not self._dreamerv3_root:
+            try:
+                importlib.import_module('dreamerv3')
+                return
+            except Exception:
+                pass
 
         candidates = []
 
@@ -292,6 +349,12 @@ class DreamerPolicyNode(Node):
             if (cand / 'dreamerv3').exists():
                 if str(cand) not in sys.path:
                     sys.path.insert(0, str(cand))
+                # Purge any cached dreamerv3 modules so everything reimports
+                # cleanly from the correct source tree (avoids version mixing
+                # when a colcon-installed dreamerv3 is also on the path).
+                stale = [k for k in sys.modules if k == 'dreamerv3' or k.startswith('dreamerv3.')]
+                for k in stale:
+                    del sys.modules[k]
                 self.get_logger().info(f'Using dreamerv3 from: {cand}')
                 return
 
@@ -307,6 +370,14 @@ class DreamerPolicyNode(Node):
         """Decode front camera image and resize to training resolution."""
         try:
             img = self._bridge.imgmsg_to_cv2(msg, desired_encoding='rgb8')
+            
+            # Apply same preprocessing as convert_bag_to_hdf5.py:
+            # Use PIL.rotate() to match converter exactly (PIL.rotate(-90) = counterclockwise)
+            from PIL import Image as PILImage
+            pil_img = PILImage.fromarray(img)
+            pil_img = pil_img.rotate(-90, expand=True)
+            img = np.array(pil_img)
+            
             img = cv2.resize(img, (self._img_w, self._img_h), interpolation=cv2.INTER_LINEAR)
             self._latest_image = img.astype(np.uint8)
         except Exception as e:
@@ -333,27 +404,39 @@ class DreamerPolicyNode(Node):
             self.get_logger().warn(f'Terrain decode error: {e}')
 
     # ──────────────────────────────────────────────────────────────────────────
-    # GOAL SERVICE
+    # GOAL TOPIC
     # ──────────────────────────────────────────────────────────────────────────
 
-    def _set_goal_callback(self, request, response):
+    def _goal_callback(self, msg: PointStamped):
         """
-        Set the navigation goal in world (odom) frame.
-        Policy receives the goal as a relative 2D vector [goal_x - robot_x, goal_y - robot_y].
+        Set the navigation goal relative to the robot's current position.
+
+        The x/y in the message are treated as a displacement from where the
+        robot is standing right now, NOT absolute world-frame coordinates.
+        This means you don't need to know the accumulated odometry offset.
+
+        Example: publish {x: 2.0, y: 0.0} to drive 2 m straight ahead in
+        the odom frame from the current position.
+
+        Publish with:
+          ros2 topic pub --once /spot/policy/goal \\
+            geometry_msgs/msg/PointStamped \\
+            "{header: {frame_id: 'odom'}, point: {x: 2.0, y: 0.0, z: 0.0}}"
         """
-        if hasattr(request, 'x') and hasattr(request, 'y'):
-            self._goal_world = np.array([request.x, request.y], dtype=np.float32)
-            self._is_first_step = True   # reset RSSM at start of new episode
-            self._rssm_state   = None
-            msg = f'Goal set to world ({request.x:.2f}, {request.y:.2f})'
-            self.get_logger().info(msg)
-            response.success = True
-            response.message = msg
-        else:
-            # Fallback for std_srvs/Trigger during development
-            self.get_logger().warn('Goal service called but no x/y fields — rebuild package.')
-            response.success = False
-        return response
+        if self._robot_position is None:
+            self.get_logger().warn('No odometry yet — cannot set relative goal.')
+            return
+        dx, dy = msg.point.x, msg.point.y
+        abs_x = float(self._robot_position[0]) + dx
+        abs_y = float(self._robot_position[1]) + dy
+        self._goal_world    = np.array([abs_x, abs_y], dtype=np.float32)
+        self._is_first_step = True
+        self._rssm_state    = None
+        self.get_logger().info(
+            f'Goal set: robot=({self._robot_position[0]:.2f}, {self._robot_position[1]:.2f})'
+            f'  +  offset=({dx:.2f}, {dy:.2f})'
+            f'  →  world=({abs_x:.2f}, {abs_y:.2f})'
+        )
 
     # ──────────────────────────────────────────────────────────────────────────
     # OBSERVATION BUILDING
@@ -377,22 +460,45 @@ class DreamerPolicyNode(Node):
         if odom is None or self._latest_image is None:
             return None
 
-        # Velocity [vx, vy, vz, wx, wy, wz]
+        # Extract orientation for velocity rotation
+        q = odom.pose.pose.orientation
+        qx, qy, qz, qw = q.x, q.y, q.z, q.w
+        orientation = np.array([qx, qy, qz, qw], dtype=np.float32)
+        
+        # Velocity: odometry publishes in world frame, rotate to body frame
+        # using the same formula as convert_bag_to_hdf5.py
         lv = odom.twist.twist.linear
         av = odom.twist.twist.angular
-        velocity = np.array([lv.x, lv.y, lv.z, av.x, av.y, av.z], dtype=np.float32)
+        
+        # Extract yaw from quaternion
+        yaw = np.arctan2(2*(qw*qz + qx*qy), 1 - 2*(qy*qy + qz*qz))
+        
+        # Rotate linear velocity from world frame to body frame
+        vwx = float(lv.x)
+        vwy = float(lv.y)
+        vbx = np.cos(yaw) * vwx + np.sin(yaw) * vwy
+        vby = -np.sin(yaw) * vwx + np.cos(yaw) * vwy
+        
+        velocity = np.array([vbx, vby, lv.z, av.x, av.y, av.z], dtype=np.float32)
 
         # Position [x, y, z]
         p = odom.pose.pose.position
         position = np.array([p.x, p.y, p.z], dtype=np.float32)
 
-        # Orientation quaternion [qx, qy, qz, qw]
-        q = odom.pose.pose.orientation
-        orientation = np.array([q.x, q.y, q.z, q.w], dtype=np.float32)
-
-        # Relative goal — defaults to zeros until goal is set
+        # Relative goal in ego-centric (body) frame — must match training!
+        # Training (spot.py) computes goal as rotated by yaw using:
+        #   goal_ego = R(yaw) @ (goal_world - position)
+        # where R(yaw) is 2D rotation matrix.
+        # This must match for consistent inference.
         if self._goal_world is not None:
-            goal = (self._goal_world - position[:2]).astype(np.float32)
+            dx = self._goal_world[0] - position[0]
+            dy = self._goal_world[1] - position[1]
+            # Rotate from world frame to body frame (same as velocity rotation)
+            goal_x = np.cos(yaw) * dx + np.sin(yaw) * dy
+            goal_y = -np.sin(yaw) * dx + np.cos(yaw) * dy
+            goal = np.array([goal_x, goal_y], dtype=np.float32)
+            if self._invert_goal_sign:
+                goal = -goal
         else:
             goal = np.zeros(2, dtype=np.float32)
 
@@ -425,12 +531,36 @@ class DreamerPolicyNode(Node):
         if self._agent is None:
             return
 
+        if self._goal_world is None:
+            self.get_logger().warn('No goal set — publish zero velocity. Use /spot/policy/set_goal.', throttle_duration_sec=5.0)
+            self._cmd_vel_pub.publish(Twist())
+            return
+
+        # ── Goal-reached check ────────────────────────────────────────────────
+        dist = float(np.linalg.norm(self._goal_world - self._robot_position[:2]))
+        if dist < 0.5:
+            self.get_logger().info(
+                f'Goal reached (dist={dist:.2f} m < 0.5 m) — stopping.',
+                throttle_duration_sec=2.0,
+            )
+            self._cmd_vel_pub.publish(Twist())   # zero velocity
+            return
+
         obs = self._build_observation()
         if obs is None:
             self.get_logger().warn('Waiting for sensor data …', throttle_duration_sec=5.0)
             return
 
         try:
+            # Debug: log observations every 5 seconds to diagnose coordinate frame issues
+            if self._step_counter % 25 == 0:  # 25 steps * 0.1s = 2.5s
+                self.get_logger().info(
+                    f'[OBS] pos={self._robot_position[:2]}, goal_world={self._goal_world}, '
+                    f'goal_rel={obs["goal"][0]}, vel_body={obs["velocity"][0, :3]}',
+                    throttle_duration_sec=1.0,
+                )
+            self._step_counter += 1
+
             outs, self._rssm_state = self._agent.policy(
                 obs, self._rssm_state, mode='eval'
             )
@@ -454,19 +584,28 @@ class DreamerPolicyNode(Node):
         """
         Decode 4D action vector to ROS commands exactly as spot.py._action() does.
 
-          action[3] > 0  → HINT_TROT,  max_vel = 2.0 m/s
-          action[3] <= 0 → HINT_AUTO,  max_vel = 1.0 m/s
+          action[3] > 0  → HINT_TROT,   max_vel = 2.0 m/s
+          action[3] <= 0 → HINT_CRAWL,  max_vel = 1.0 m/s
 
           vel_x   = action[0] * max_vel
           vel_y   = action[1] * max_vel
           vel_yaw = action[2] * 1.0
         """
-        gait    = _HINT_TROT if action[3] > 0 else _HINT_AUTO
+        gait    = _HINT_TROT if action[3] > 0 else _HINT_CRAWL
         max_vel = 2.0        if action[3] > 0 else 1.0
 
-        vel_x   = float(action[0] * max_vel)
-        vel_y   = float(action[1] * max_vel)
-        vel_yaw = float(action[2] * 1.0)
+        # Clip to SPOT's hard API limits (tanh can slightly exceed ±1.0).
+        # Use 1.5 instead of 1.6 for angular: SPOT's check is strictly > ±1.6
+        # so clipping to the boundary still triggers the rejection.
+        _MAX_LIN = 1.9   # m/s  (SPOT hard limit is 2.0, stay clear)
+        _MAX_YAW = 1.5   # rad/s (SPOT hard limit is 1.6, stay clear)
+
+        vel_x   = action[0]
+        if self._invert_action_x_sign:
+            vel_x = -vel_x
+        vel_x   = float(np.clip(vel_x * max_vel, -_MAX_LIN, _MAX_LIN))
+        vel_y   = float(np.clip(action[1] * max_vel, -_MAX_LIN, _MAX_LIN))
+        vel_yaw = float(np.clip(action[2] * 1.0,     -_MAX_YAW, _MAX_YAW))
 
         # ── Publish cmd_vel ───────────────────────────────────────────────────
         twist = Twist()
@@ -486,9 +625,12 @@ class DreamerPolicyNode(Node):
         dbg.data = action.tolist()
         self._action_debug_pub.publish(dbg)
 
-        self.get_logger().debug(
-            f'action={action.tolist()}  →  vx={vel_x:.2f} vy={vel_y:.2f}'
-            f' vyaw={vel_yaw:.2f}  gait={gait}'
+        dist = float(np.linalg.norm(self._goal_world - self._robot_position[:2])) if self._goal_world is not None else float('nan')
+        self.get_logger().info(
+            f'[policy] raw=({action[0]:+.3f},{action[1]:+.3f},{action[2]:+.3f},{action[3]:+.3f})'
+            f'  →  vx={vel_x:+.2f} vy={vel_y:+.2f} vyaw={vel_yaw:+.2f}  '
+            f'gait={"TROT" if gait == _HINT_TROT else "CRAWL"}  dist_to_goal={dist:.2f}m',
+            throttle_duration_sec=2.0,
         )
 
 
@@ -501,7 +643,7 @@ def main(args=None):
         node.get_logger().info('Shutting down …')
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        rclpy.try_shutdown()   # no-op if already shut down by signal handler
 
 
 if __name__ == '__main__':

@@ -14,7 +14,7 @@ setup(
         ('share/' + package_name + '/config', ['config/params.yaml']),
         ('share/' + package_name + '/srv', ['srv/SetGoalWaypoint.srv']),
     ],
-    install_requires=['setuptools'],
+    install_requires=['setuptools', 'readchar'],
     zip_safe=True,
     maintainer='Maurits',
     maintainer_email='maurits@example.com',

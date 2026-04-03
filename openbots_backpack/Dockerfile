@@ -62,21 +62,29 @@ RUN pip3 install --no-cache-dir \
 # DreamerV3 / JAX inference dependencies
 # Pin to a ROS-compatible stack:
 # - NumPy 1.x is required by cv_bridge/spot_driver and old transforms3d usage.
-# - Newer JAX builds may assume newer NumPy APIs and fail at import time.
+# - jax[cuda12]==0.4.28 is the last release bundling cuDNN 8.9, which supports
+#   Pascal GPUs (SM 6.1, e.g. GTX 1050 in the backpack).  Newer jaxlib (>=0.4.35)
+#   bundles cuDNN 9.x which requires Volta (SM>=7.0) and fails with status 5003.
+# - chex + optax at latest fix the jax.core.Shape KeyError on checkpoint load.
 # - TensorFlow 2.11.x in this image requires protobuf<3.20.
 RUN pip3 install --no-cache-dir \
     "numpy==1.23.5" \
-    "jax==0.4.17" \
-    "jaxlib==0.4.17" \
-    "optax==0.1.7" \
+    "jax[cuda12]==0.4.28" \
+    --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html \
     "ruamel.yaml" \
     "tensorflow_probability==0.23.0" \
     "protobuf==3.19.6" \
     rich \
     cloudpickle
 
+# chex and optax must be installed AFTER jax so they pin against the correct version.
+# Latest versions fix the jax.core.Shape KeyError that occurs when loading checkpoints
+# produced with newer jax on an older deployment install.
+RUN pip3 install --no-cache-dir -U chex optax
+
 # Smoke-test core ML imports at build time so version conflicts fail early.
-RUN python3 - <<'PY'
+# Force CPU platform so the build host doesn't need a GPU.
+RUN JAX_PLATFORM_NAME=cpu python3 - <<'PY'
 import numpy
 import jax
 import tensorflow_probability as tfp
@@ -85,6 +93,10 @@ print('numpy', numpy.__version__)
 print('jax', jax.__version__)
 print('tfp', tfp.__version__)
 print('tfp_jax', getattr(tfp_jax, '__name__', 'ok'))
+# Sanity-check that optax and chex load without the jax.core.Shape crash
+import optax, chex
+print('optax', optax.__version__)
+print('chex', chex.__version__)
 PY
 
 COPY fix_hosts.sh /usr/local/bin/fix_hosts.sh

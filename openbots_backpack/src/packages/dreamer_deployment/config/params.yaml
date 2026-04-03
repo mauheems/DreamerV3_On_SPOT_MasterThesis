@@ -5,7 +5,7 @@
       # ── Checkpoint ─────────────────────────────────────────────────────────
       # Change this path to switch between training sessions.
       # The config.yaml next to the checkpoint is loaded automatically.
-      checkpoint_path: "/home/ob/dreamer_results_local/dreamer-results-20260310-160927-informed-fulldata/checkpoint.ckpt"
+      checkpoint_path: "/home/ob/dreamer_results_local/ablation-dyn1.0-20260327-153959/checkpoint.ckpt"
 
       # Optional override path to informed-dreamer root (folder containing dreamerv3/).
       # Leave empty to auto-discover in common host/container locations.
@@ -13,7 +13,8 @@
       dreamerv3_root: "/home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer"
 
       # ── Control ────────────────────────────────────────────────────────────
-      control_rate_hz: 10            # Hz; keep low — JAX inference on CPU
+      control_rate_hz: 10           # Hz; timer is non-blocking — inference runs in background thread
+      policy_rate_hz: 3.5           # Hz; should match dataset recording rate (~3.5 Hz)
       robot_name: "spot"
 
       # ── Image dimensions (must match training data exactly) ────────────────
@@ -29,8 +30,25 @@
       terrain_width:  40
 
       # ── DEBUG / TEMPORARY FIXES ─────────────────────────────────────────────
+      # JAX platform: 'cpu' or 'gpu'. Use 'gpu' if NVIDIA GPU is available in container.
+      jax_platform: gpu
+      
+      # JAX precision: 'float32' (default) or 'float16' (half precision for memory savings).
+      # Both xlargerssm and dyn1.0 have deter=4096 which requires ~2.9 GiB at float32.
+      # GTX 1050 has only 4 GiB total, so use float16 to reduce memory to ~1.5 GiB.
+      # CAUTION: checkpoint must have been trained with matching precision.
+      jax_precision: float16
+
       # Set to true if policy goes backward when goal is ahead (sign flip diagnostic)
       invert_goal_sign: false
       
       # Set to true if policy output is inverted (systematically going opposite direction)
       invert_action_x_sign: false
+
+      # ── GAIT SELECTION ──────────────────────────────────────────────────────
+      # Disable gait selection to use fixed locomotion mode (for troubleshooting)
+      # When disabled, always uses fixed_gait_mode below regardless of policy action[3]
+      disable_gait_selection: false
+      
+      # Fixed gait when gait selection is disabled: 'trot' (fast, 2.0 m/s) or 'crawl' (slow, 1.0 m/s)
+      fixed_gait_mode: trot

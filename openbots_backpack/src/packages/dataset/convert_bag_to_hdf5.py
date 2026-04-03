@@ -334,19 +334,17 @@ class BagConverter:
             new_quat = (inv_yaw_rot * R.from_quat(state[3:7])).as_quat()
             new_states.append(np.concatenate([new_pos, new_quat]).astype(np.float32))
         
-        # Also rotate velocities to stay consistent with the new frame
+        # Also rotate velocities to stay consistent with the new frame.
+        # _write_hdf5 will then rotate using the zero-centered yaw (yaw - yaw0).
+        # Together: R(-(yaw-yaw0)) @ R(-yaw0) = R(-yaw) — correct world→body rotation.
         new_velocities = []
         for vel in velocities:
-            # Extract linear and angular components
             v_lin = vel[:3]
             v_ang = vel[3:6]
-            
-            # Rotate both linear and angular velocity components by inv_yaw_rot
             new_v_lin = inv_yaw_rot.apply(v_lin)
             new_v_ang = inv_yaw_rot.apply(v_ang)
-            
             new_velocities.append(np.concatenate([new_v_lin, new_v_ang]).astype(np.float32))
-            
+
         self.episode['states'] = new_states
         self.episode['velocities'] = new_velocities
 

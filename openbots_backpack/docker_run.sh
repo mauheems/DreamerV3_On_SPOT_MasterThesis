@@ -7,6 +7,7 @@ echo "Launching Docker container from image: $IMAGE_NAME"
 docker run -it \
     --hostname ob_container \
     --network host \
+    --gpus all \
     -e TERM=xterm-256color \
     -v $(pwd)/src/packages:/home/ob/openbots_ws/src/packages \
     -v $(pwd)/../dreamer_SPOT_implementation:/home/ob/openbots_ws/src/dreamer_SPOT_implementation \

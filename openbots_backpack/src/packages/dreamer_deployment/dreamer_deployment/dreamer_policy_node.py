@@ -20,20 +20,22 @@ The policy is a trained DreamerV3 JAX agent. Its RSSM maintains internal recurre
 state between steps — no manual history buffer is needed.
 
 Action space (4D in [-1, 1]):
-  action[0] * max_vel  → cmd_vel.linear.x
-  action[1] * max_vel  → cmd_vel.linear.y
-  action[2] * 1.0      → cmd_vel.angular.z
-  action[3] > 0        → locomotion HINT_TROT (max_vel=2.0)
-  action[3] <= 0       → locomotion HINT_AUTO (max_vel=1.0)
+  action[0] * max_vel        → cmd_vel.linear.x   (max_vel: trot=2.0, crawl=1.0)
+  action[1] * (max_vel/2.0)  → cmd_vel.linear.y   (SPOT vy limit = vx/2)
+  action[2] * 1.0            → cmd_vel.angular.z
+  action[3] > 0              → locomotion HINT_TROT (max_vel=2.0)
+  action[3] <= 0             → locomotion HINT_AUTO (max_vel=1.0)
 
 To switch policies, only change `checkpoint_path` in params.yaml.
 """
 
 import os
 import sys
+import time
 import importlib
 from pathlib import Path
 
+import threading
 import numpy as np
 import cv2
 
@@ -44,6 +46,7 @@ from sensor_msgs.msg import Image
 from nav_msgs.msg import Odometry, OccupancyGrid
 from geometry_msgs.msg import Twist, PointStamped
 from std_msgs.msg import Float32MultiArray
+from std_srvs.srv import Empty
 from cv_bridge import CvBridge
 
 from spot_msgs.srv import SetLocomotion  # type: ignore
@@ -89,8 +92,27 @@ class DreamerPolicyNode(Node):
         # TEMPORARY DEBUG: set to true to flip action[0] (forward/backward) sign
         self.declare_parameter('invert_action_x_sign', False)
 
+        # DEPLOYMENT CONTROL: disable gait selection to use fixed locomotion mode
+        # When disabled, always uses fixed_gait_mode (trot or crawl) regardless of action[3]
+        # Useful to test if gait selection is causing deployment issues.
+        self.declare_parameter('disable_gait_selection', False)
+        self.declare_parameter('fixed_gait_mode', 'trot')  # 'trot' or 'crawl'
+
+        # JAX platform: 'cpu' or 'gpu'. Use 'gpu' if NVIDIA GPU is available in the container.
+        self.declare_parameter('jax_platform', 'cpu')
+        
+        # JAX precision: 'float32' (default) or 'float16' (half precision for memory savings).
+        # Both xlargerssm and dyn1.0 have deter=4096 which OOMs on GTX 1050 at float32.
+        self.declare_parameter('jax_precision', 'float32')
+
+        # Policy inference rate — should match the dataset recording frequency (~3.5 Hz).
+        # cmd_vel is still republished at control_rate_hz between policy steps so SPOT
+        # doesn't hit its command timeout.
+        self.declare_parameter('policy_rate_hz', 3.5)
+
         checkpoint_path  = self.get_parameter('checkpoint_path').value
         control_rate_hz  = self.get_parameter('control_rate_hz').value
+        policy_rate_hz   = float(self.get_parameter('policy_rate_hz').value)
         robot_name       = self.get_parameter('robot_name').value
         self._dreamerv3_root = self.get_parameter('dreamerv3_root').value
         self._img_h      = self.get_parameter('image_height').value
@@ -99,14 +121,29 @@ class DreamerPolicyNode(Node):
         self._ter_w      = self.get_parameter('terrain_width').value
         self._invert_goal_sign = self.get_parameter('invert_goal_sign').value
         self._invert_action_x_sign = self.get_parameter('invert_action_x_sign').value
+        self._disable_gait_selection = self.get_parameter('disable_gait_selection').value
+        self._fixed_gait_mode = self.get_parameter('fixed_gait_mode').value
+        self._jax_platform = self.get_parameter('jax_platform').value
+        self._jax_precision = self.get_parameter('jax_precision').value
+
+        # How many control ticks between RSSM policy calls.
+        # e.g. control=10Hz, policy=3.5Hz → stride=3 (call every 3rd tick ≈ 3.33Hz)
+        self._policy_stride = max(1, round(control_rate_hz / policy_rate_hz))
+        self._tick_counter  = 0
 
         self.get_logger().info('=== Dreamer Policy Node ===')
         self.get_logger().info(f'  Checkpoint : {checkpoint_path}')
-        self.get_logger().info(f'  Control Hz : {control_rate_hz}')
+        self.get_logger().info(f'  Control Hz : {control_rate_hz}  (policy every {self._policy_stride} ticks ≈ {control_rate_hz/self._policy_stride:.1f} Hz)')
         self.get_logger().info(f'  Image size : {self._img_h}x{self._img_w}')
         self.get_logger().info(f'  Terrain sz : {self._ter_h}x{self._ter_w}')
         if self._dreamerv3_root:
             self.get_logger().info(f'  dreamerv3 root override : {self._dreamerv3_root}')
+        
+        # Log deployment control settings
+        if self._disable_gait_selection:
+            self.get_logger().warn(f'  ⚠️  Gait selection DISABLED — using fixed mode: {self._fixed_gait_mode}')
+        else:
+            self.get_logger().info(f'  Gait selection: enabled (action[3]-driven)')
 
         # ============ SENSOR STATE ============
         self._bridge             = CvBridge()
@@ -119,6 +156,31 @@ class DreamerPolicyNode(Node):
         self._goal_world         = None   # np.float32 (2,) — [x, y]
         self._is_first_step      = True   # tells RSSM this is the start of an episode
         self._step_counter       = 0      # for throttled logging
+
+        # Episode origin for zero-centering — matches convert_bag_to_hdf5 _zero_center_trajectory.
+        # Training data always starts at (0,0,0) facing +X, so we must do the same at deployment.
+        self._episode_pos0       = None   # np.float32 (3,) — world position at episode start
+        self._episode_yaw0       = None   # float — yaw at episode start
+
+        # ── Inference threading ───────────────────────────────────────────────
+        # Inference runs in a background thread so the ROS executor is never
+        # blocked and sensor callbacks always receive fresh data.
+        self._inference_lock    = threading.Lock()   # guards _rssm_state
+        self._inference_running = False              # prevents overlapping calls
+        self._last_twist        = None               # held and republished between policy steps
+
+        # ── Keyboard input thread ─────────────────────────────────────────────
+        # Listen for 'r' key in terminal to trigger reset without reloading agent
+        self._keyboard_thread = None
+        self._keyboard_running = False
+
+        # ── Sensor status tracking ────────────────────────────────────────────
+        # Track which sensors have received data to handle restart scenarios
+        self._sensor_ready = {
+            'image': False,
+            'odometry': False,
+            'terrain': False,
+        }
 
         # ============ DREAMER AGENT ============
         self._agent    = None
@@ -158,6 +220,11 @@ class DreamerPolicyNode(Node):
         # ============ SERVICE CLIENTS ============
         self._locomotion_client = self.create_client(SetLocomotion, '/locomotion_mode')
 
+        # ============ SERVICE SERVERS ============
+        # Reset the policy state without reloading the agent
+        self.create_service(Empty, '/dreamer_policy/reset', self._handle_reset_service)
+        self.get_logger().info('Reset service available at /dreamer_policy/reset (use: ros2 service call /dreamer_policy/reset std_srvs/Empty)')
+
         # ============ GOAL TOPIC ============
         # Publish a goal with: ros2 topic pub --once /spot/policy/goal \
         #   geometry_msgs/msg/PointStamped "{header: {frame_id: 'odom'}, point: {x: 2.0, y: 0.0, z: 0.0}}"
@@ -174,7 +241,25 @@ class DreamerPolicyNode(Node):
             1.0 / control_rate_hz,
             self._control_loop,
         )
-        self.get_logger().info('Policy node initialised — waiting for sensor data …')
+        
+        # ============ KEYBOARD INPUT ============
+        # Start background thread for keyboard 'r' reset
+        self._keyboard_running = True
+        self._keyboard_thread = threading.Thread(target=self._keyboard_listener, daemon=True)
+        self._keyboard_thread.start()
+        self.get_logger().info('⌨️  Press "r" in this terminal to reset policy state')
+        
+        # ============ SENSOR WARMUP ============
+        # Wait for all sensors to connect and deliver at least one message.
+        # This handles restart scenarios where subscriptions need time to reconnect.
+        self.get_logger().info('Waiting for sensor data …')
+        self._wait_for_sensors(timeout_sec=30.0)
+        
+        # Start goal input thread (asks for initial coordinates)
+        self._goal_input_thread = threading.Thread(target=self._prompt_for_goal, daemon=True)
+        self._goal_input_thread.start()
+        
+        self.get_logger().info('✓ All sensors ready. Policy node initialised.')
 
     # ──────────────────────────────────────────────────────────────────────────
     # AGENT LOADING
@@ -206,9 +291,18 @@ class DreamerPolicyNode(Node):
             raw_cfg = yaml.YAML(typ='safe').load(config_file.read_text())
             config = embodied.Config(dreamerv3.Agent.configs['defaults'])
             config = config.update(raw_cfg)
-            # Run in eval mode on CPU (no GPU required for deployment)
+            # Run in eval mode; fall back to CPU if requested platform is unavailable
+            import jax
+            platform = self._jax_platform
+            try:
+                jax.devices(platform)
+            except Exception:
+                self.get_logger().warn(
+                    f'Platform "{platform}" unavailable — falling back to cpu.')
+                platform = 'cpu'
             config = config.update({
-                'jax.platform': 'cpu',
+                'jax.platform': platform,
+                'jax.precision': self._jax_precision,
                 'jax.prealloc': False,
                 'jax.jit': True,
                 'batch_size': 1,
@@ -236,7 +330,6 @@ class DreamerPolicyNode(Node):
             step = embodied.Counter()
             self._agent = dreamerv3.Agent(obs_space, act_space, step, config)
 
-            # ── Restore weights ───────────────────────────────────────────────
             # Inject optax.transforms shim: checkpoints pickled with older optax
             # reference 'optax.transforms' which no longer exists as a submodule.
             self._patch_optax_transforms()
@@ -363,6 +456,49 @@ class DreamerPolicyNode(Node):
             self.get_logger().error(f'  - {path}')
 
     # ──────────────────────────────────────────────────────────────────────────
+    # SENSOR WARMUP
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _wait_for_sensors(self, timeout_sec: float = 30.0):
+        """
+        Block until all sensors have delivered at least one message.
+        This handles restart scenarios where subscriptions need time to reconnect.
+        
+        Args:
+            timeout_sec: Maximum time to wait in seconds
+        """
+        start_time = time.time()
+        timeout = start_time + timeout_sec
+        missing_sensors = set(self._sensor_ready.keys())
+        
+        while time.time() < timeout:
+            # Check which sensors have delivered data
+            missing_sensors = {s for s in self._sensor_ready.keys() if not self._sensor_ready[s]}
+            
+            if not missing_sensors:
+                self.get_logger().info(
+                    f'✓ All sensors connected: image, odometry, terrain'
+                )
+                return  # Success!
+            
+            elapsed = time.time() - start_time
+            self.get_logger().info(
+                f'  Waiting for sensors … ({elapsed:.1f}s) Missing: {", ".join(sorted(missing_sensors))}',
+                throttle_duration_sec=2.0,  # Log every 2 seconds max
+            )
+            time.sleep(0.5)
+        
+        # Timeout reached
+        missing = ', '.join(sorted(missing_sensors))
+        self.get_logger().error(
+            f'Timeout waiting for sensors! Missing after {timeout_sec}s: {missing}\n'
+            f'  • Is the SPOT driver running? (Run: ros2 launch ... spot_driver.launch.py)\n'
+            f'  • Check topic connectivity: ros2 topic list | grep -E "camera|odometry|terrain"\n'
+            f'  • Check: ros2 topic echo /camera/frontmiddle_virtual/image  # (Ctrl+C to exit)'
+        )
+        # Continue anyway (inference will just warn about missing data)
+
+    # ──────────────────────────────────────────────────────────────────────────
     # SENSOR CALLBACKS
     # ──────────────────────────────────────────────────────────────────────────
 
@@ -380,6 +516,7 @@ class DreamerPolicyNode(Node):
             
             img = cv2.resize(img, (self._img_w, self._img_h), interpolation=cv2.INTER_LINEAR)
             self._latest_image = img.astype(np.uint8)
+            self._sensor_ready['image'] = True
         except Exception as e:
             self.get_logger().warn(f'Image decode error: {e}')
 
@@ -388,6 +525,7 @@ class DreamerPolicyNode(Node):
         self._latest_odometry = msg
         p = msg.pose.pose.position
         self._robot_position = np.array([p.x, p.y, p.z], dtype=np.float32)
+        self._sensor_ready['odometry'] = True
 
     def _terrain_callback(self, msg: OccupancyGrid):
         """Decode OccupancyGrid terrain into a float32 array matching training shape."""
@@ -400,6 +538,7 @@ class DreamerPolicyNode(Node):
             if (h, w) != (self._ter_h, self._ter_w):
                 grid = cv2.resize(grid, (self._ter_w, self._ter_h), interpolation=cv2.INTER_LINEAR)
             self._latest_terrain = grid
+            self._sensor_ready['terrain'] = True
         except Exception as e:
             self.get_logger().warn(f'Terrain decode error: {e}')
 
@@ -411,31 +550,243 @@ class DreamerPolicyNode(Node):
         """
         Set the navigation goal relative to the robot's current position.
 
-        The x/y in the message are treated as a displacement from where the
-        robot is standing right now, NOT absolute world-frame coordinates.
-        This means you don't need to know the accumulated odometry offset.
+        By default the x/y offset is interpreted in the ROBOT'S BODY FRAME:
+          x = forward distance (positive = ahead)
+          y = lateral distance (positive = left)
 
-        Example: publish {x: 2.0, y: 0.0} to drive 2 m straight ahead in
-        the odom frame from the current position.
+        The offset is rotated into the odom/world frame using the robot's
+        current yaw so the model always sees a goal that is in-distribution
+        (mostly forward, small lateral), matching the teleop training data.
 
         Publish with:
           ros2 topic pub --once /spot/policy/goal \\
             geometry_msgs/msg/PointStamped \\
-            "{header: {frame_id: 'odom'}, point: {x: 2.0, y: 0.0, z: 0.0}}"
+            "{header: {frame_id: 'body'}, point: {x: 3.0, y: 0.0, z: 0.0}}"
+
+        If frame_id is 'odom' the offset is treated as a world-frame
+        displacement (old behaviour) instead.
         """
         if self._robot_position is None:
             self.get_logger().warn('No odometry yet — cannot set relative goal.')
             return
-        dx, dy = msg.point.x, msg.point.y
-        abs_x = float(self._robot_position[0]) + dx
-        abs_y = float(self._robot_position[1]) + dy
-        self._goal_world    = np.array([abs_x, abs_y], dtype=np.float32)
+
+        dx_in, dy_in = msg.point.x, msg.point.y
+        frame = msg.header.frame_id if msg.header.frame_id else 'body'
+
+        odom = self._latest_odometry
+        if odom is not None:
+            q = odom.pose.pose.orientation
+            yaw = float(np.arctan2(2*(q.w*q.z + q.x*q.y), 1 - 2*(q.y*q.y + q.z*q.z)))
+        else:
+            yaw = 0.0
+
+        if frame == 'odom':
+            # Legacy: treat offset as world-frame displacement
+            dx_world, dy_world = dx_in, dy_in
+        else:
+            # Default: rotate body-frame (forward, left) offset into world frame
+            dx_world = np.cos(yaw) * dx_in - np.sin(yaw) * dy_in
+            dy_world = np.sin(yaw) * dx_in + np.cos(yaw) * dy_in
+
+        abs_x = float(self._robot_position[0]) + dx_world
+        abs_y = float(self._robot_position[1]) + dy_world
+
+        self._goal_world = np.array([abs_x, abs_y], dtype=np.float32)
+        self._reset_episode_state(yaw if odom is not None else 0.0, odom)
+
+        # Compute expected initial goal_rel for logging (should be ≈ [dx_in, dy_in])
+        expected_rel_x = np.cos(yaw) * (abs_x - self._robot_position[0]) + np.sin(yaw) * (abs_y - self._robot_position[1])
+        expected_rel_y = -np.sin(yaw) * (abs_x - self._robot_position[0]) + np.cos(yaw) * (abs_y - self._robot_position[1])
+
+        offset_label = 'offset_body' if frame != 'odom' else 'offset_world'
+        self.get_logger().info(
+            f'🎯 Goal set [{frame}]: {offset_label}=({dx_in:.2f}, {dy_in:.2f})'
+            f'  →  model sees: pos=(0.00, 0.00)  goal=({expected_rel_x:.2f}, {expected_rel_y:.2f})'
+            f'  dist={np.hypot(expected_rel_x, expected_rel_y):.2f}m  yaw0={np.degrees(yaw):.1f}°'
+        )
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # KEYBOARD INPUT
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _keyboard_listener(self):
+        """
+        Background thread that listens for 'r' key press in the terminal.
+        When 'r' is detected, triggers an episode reset without reloading the agent.
+        """
+        import sys
+        
+        # Try to use readchar for cleaner input if available, otherwise fall back to basic input
+        try:
+            import readchar
+            
+            self.get_logger().debug('Using readchar for keyboard input')
+            
+            while self._keyboard_running:
+                try:
+                    char = readchar.readchar()
+                    if char.lower() == 'r':
+                        self._trigger_reset_from_keyboard()
+                except (EOFError, KeyboardInterrupt):
+                    # Terminal closed or user pressed Ctrl+C (handled by main)
+                    break
+                except Exception as e:
+                    self.get_logger().debug(f'Keyboard read error: {e}')
+                    time.sleep(0.1)
+        except ImportError:
+            # Fallback: use simple input() with timeout (less responsive but works everywhere)
+            self.get_logger().debug('readchar not available — using stdin polling (less responsive)')
+            
+            import select
+            
+            while self._keyboard_running:
+                try:
+                    # Non-blocking read for Unix systems
+                    if hasattr(select, 'select'):
+                        ready, _, _ = select.select([sys.stdin], [], [], 0.1)
+                        if ready:
+                            char = sys.stdin.read(1).lower()
+                            if char == 'r':
+                                self._trigger_reset_from_keyboard()
+                    else:
+                        # Windows fallback: just sleep (no non-blocking stdin)
+                        time.sleep(0.1)
+                except Exception as e:
+                    self.get_logger().debug(f'Keyboard poll error: {e}')
+                    time.sleep(0.1)
+
+    def _trigger_reset_from_keyboard(self):
+        """Reset triggered by 'r' key press in terminal."""
+        self.get_logger().info('⟲ Reset triggered by keyboard ("r" pressed)')
+        yaw = 0.0
+        if self._latest_odometry is not None:
+            q = self._latest_odometry.pose.pose.orientation
+            qx, qy, qz, qw = q.x, q.y, q.z, q.w
+            yaw = np.arctan2(2*(qw*qz + qx*qy), 1 - 2*(qy*qy + qz*qz))
+        
+        self._reset_episode_state(yaw, self._latest_odometry)
+        
+        # Prompt for new goal in a separate thread (non-blocking)
+        goal_thread = threading.Thread(target=self._prompt_for_goal, daemon=True)
+        goal_thread.start()
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # RESET SERVICE & EPISODE STATE
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _handle_reset_service(self, request, response):
+        """
+        Service handler for /dreamer_policy/reset (std_srvs/Empty).
+        Resets the policy state: clears goal, RSSM state, and episode tracking.
+        Does NOT reload the agent — only resets internal state.
+        
+        Called via: ros2 service call /dreamer_policy/reset std_srvs/Empty
+        """
+        self.get_logger().info('⟲ Reset requested — clearing goal and RSSM state')
+        yaw = 0.0
+        if self._latest_odometry is not None:
+            q = self._latest_odometry.pose.pose.orientation
+            qx, qy, qz, qw = q.x, q.y, q.z, q.w
+            yaw = np.arctan2(2*(qw*qz + qx*qy), 1 - 2*(qy*qy + qz*qz))
+        
+        self._reset_episode_state(yaw, self._latest_odometry)
+        return response
+
+    def _reset_episode_state(self, yaw: float, odom):
+        """
+        Reset episode state: clear goal, RSSM state, and position/orientation tracking.
+        Called when:
+          1. A new goal is set via _goal_callback()
+          2. Reset service is triggered via ros2 service call
+        
+        Args:
+            yaw: Current robot yaw (rad) in world frame
+            odom: Latest odometry message (may be None)
+        """
         self._is_first_step = True
         self._rssm_state    = None
+        self._last_twist    = None   # clear stale command
+        self._tick_counter  = 0      # fire inference on next stride tick
+
+        # Snapshot episode origin for zero-centering (matches training data convention)
+        if odom is not None:
+            p = odom.pose.pose.position
+            self._episode_pos0 = np.array([p.x, p.y, p.z], dtype=np.float32)
+            self._episode_yaw0 = yaw
+        else:
+            self._episode_pos0 = self._robot_position.copy()
+            self._episode_yaw0 = 0.0
+        
         self.get_logger().info(
-            f'Goal set: robot=({self._robot_position[0]:.2f}, {self._robot_position[1]:.2f})'
-            f'  +  offset=({dx:.2f}, {dy:.2f})'
-            f'  →  world=({abs_x:.2f}, {abs_y:.2f})'
+            f'  Episode state reset: pos0=({self._episode_pos0[0]:.2f}, {self._episode_pos0[1]:.2f}), '
+            f'yaw0={np.degrees(self._episode_yaw0):.1f}°'
+        )
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # INTERACTIVE GOAL INPUT
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _prompt_for_goal(self):
+        """
+        Prompt user for goal coordinates (x, y) in a blocking, user-friendly way.
+        This runs in a background thread so it doesn't block ROS operations.
+        """
+        try:
+            # Get x coordinate
+            while True:
+                try:
+                    x_str = input('\n🎯 Enter goal X coordinate (m): ').strip()
+                    x = float(x_str)
+                    break
+                except ValueError:
+                    self.get_logger().warn(f'Invalid input "{x_str}". Please enter a number.')
+            
+            # Get y coordinate
+            while True:
+                try:
+                    y_str = input('🎯 Enter goal Y coordinate (m): ').strip()
+                    y = float(y_str)
+                    break
+                except ValueError:
+                    self.get_logger().warn(f'Invalid input "{y_str}". Please enter a number.')
+            
+            # Apply the goal
+            self._set_goal_from_input(x, y)
+        
+        except (EOFError, KeyboardInterrupt):
+            # User pressed Ctrl+D or Ctrl+C
+            self.get_logger().info('Goal input cancelled.')
+
+    def _set_goal_from_input(self, x: float, y: float):
+        """
+        Set goal from user input coordinates.
+        Mimics the behavior of _goal_callback but with user-provided coordinates.
+        """
+        if self._robot_position is None:
+            self.get_logger().warn('No odometry yet — cannot set goal.')
+            return
+
+        # Goal is in world frame (odom)
+        self._goal_world = np.array([float(x), float(y)], dtype=np.float32)
+        
+        # Reset episode state
+        yaw = 0.0
+        odom = self._latest_odometry
+        if odom is not None:
+            q = odom.pose.pose.orientation
+            qx, qy, qz, qw = q.x, q.y, q.z, q.w
+            yaw = np.arctan2(2*(qw*qz + qx*qy), 1 - 2*(qy*qy + qz*qz))
+        
+        self._reset_episode_state(yaw, odom)
+        
+        # Compute and log expected goal_rel
+        expected_rel_x = np.cos(yaw) * (x - self._robot_position[0]) + np.sin(yaw) * (y - self._robot_position[1])
+        expected_rel_y = -np.sin(yaw) * (x - self._robot_position[0]) + np.cos(yaw) * (y - self._robot_position[1])
+        
+        self.get_logger().info(
+            f'🎯 Goal set [user input]: offset_world=({x:.2f}, {y:.2f})'
+            f'  →  model sees: pos=(0.00, 0.00)  goal=({expected_rel_x:.2f}, {expected_rel_y:.2f})'
+            f'  dist={np.hypot(expected_rel_x, expected_rel_y):.2f}m  yaw0={np.degrees(yaw):.1f}°'
         )
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -463,7 +814,6 @@ class DreamerPolicyNode(Node):
         # Extract orientation for velocity rotation
         q = odom.pose.pose.orientation
         qx, qy, qz, qw = q.x, q.y, q.z, q.w
-        orientation = np.array([qx, qy, qz, qw], dtype=np.float32)
         
         # Velocity: odometry publishes in world frame, rotate to body frame
         # using the same formula as convert_bag_to_hdf5.py
@@ -472,28 +822,50 @@ class DreamerPolicyNode(Node):
         
         # Extract yaw from quaternion
         yaw = np.arctan2(2*(qw*qz + qx*qy), 1 - 2*(qy*qy + qz*qz))
-        
+
         # Rotate linear velocity from world frame to body frame
         vwx = float(lv.x)
         vwy = float(lv.y)
         vbx = np.cos(yaw) * vwx + np.sin(yaw) * vwy
         vby = -np.sin(yaw) * vwx + np.cos(yaw) * vwy
-        
+
         velocity = np.array([vbx, vby, lv.z, av.x, av.y, av.z], dtype=np.float32)
 
-        # Position [x, y, z]
+        # Position [x, y, z] — zero-centered to match training data convention.
+        # convert_bag_to_hdf5._zero_center_trajectory() subtracts pos0 and rotates
+        # by -yaw0 so every episode starts at (0,0,0) facing +X.
         p = odom.pose.pose.position
-        position = np.array([p.x, p.y, p.z], dtype=np.float32)
+        raw_pos = np.array([p.x, p.y, p.z], dtype=np.float32)
+        if self._episode_pos0 is not None:
+            dp = raw_pos - self._episode_pos0
+            cy0, sy0 = np.cos(-self._episode_yaw0), np.sin(-self._episode_yaw0)
+            centered_x = cy0 * dp[0] - sy0 * dp[1]
+            centered_y = sy0 * dp[0] + cy0 * dp[1]
+            position = np.array([centered_x, centered_y, dp[2]], dtype=np.float32)
+
+            # Zero-center orientation quaternion to match training data.
+            # convert_bag_to_hdf5 applies R(-yaw0) * q_raw so episode starts at yaw=0.
+            # Quaternion for R(-yaw0) around z: [0, 0, sin(-yaw0/2), cos(-yaw0/2)]
+            sz = -np.sin(self._episode_yaw0 / 2)
+            cz =  np.cos(self._episode_yaw0 / 2)
+            orientation = np.array([
+                cz*qx - sz*qy,
+                cz*qy + sz*qx,
+                cz*qz + sz*qw,
+                cz*qw - sz*qz,
+            ], dtype=np.float32)
+        else:
+            position = raw_pos
+            orientation = np.array([qx, qy, qz, qw], dtype=np.float32)
 
         # Relative goal in ego-centric (body) frame — must match training!
-        # Training (spot.py) computes goal as rotated by yaw using:
-        #   goal_ego = R(yaw) @ (goal_world - position)
-        # where R(yaw) is 2D rotation matrix.
-        # This must match for consistent inference.
+        # Training (spot.py): goal_ego = R(-yaw) @ (goal_world_zc - position_zc)
+        # Mathematically this equals R(-yaw_raw) @ (goal_raw - p_raw), so compute
+        # the delta entirely in raw odom frame then rotate by raw yaw.
         if self._goal_world is not None:
-            dx = self._goal_world[0] - position[0]
-            dy = self._goal_world[1] - position[1]
-            # Rotate from world frame to body frame (same as velocity rotation)
+            dx = self._goal_world[0] - raw_pos[0]
+            dy = self._goal_world[1] - raw_pos[1]
+            # Rotate from world frame to body frame using raw yaw
             goal_x = np.cos(yaw) * dx + np.sin(yaw) * dy
             goal_y = -np.sin(yaw) * dx + np.cos(yaw) * dy
             goal = np.array([goal_x, goal_y], dtype=np.float32)
@@ -525,8 +897,8 @@ class DreamerPolicyNode(Node):
 
     def _control_loop(self):
         """
-        Run one policy step:
-          obs → agent.policy() → action (4D) → cmd_vel + locomotion mode
+        Timer callback — dispatches inference to a background thread immediately
+        and returns so the ROS executor is never blocked.
         """
         if self._agent is None:
             return
@@ -534,47 +906,84 @@ class DreamerPolicyNode(Node):
         if self._goal_world is None:
             self.get_logger().warn('No goal set — publish zero velocity. Use /spot/policy/set_goal.', throttle_duration_sec=5.0)
             self._cmd_vel_pub.publish(Twist())
+            self._tick_counter = 0  # reset so next goal triggers inference immediately
             return
 
-        # ── Goal-reached check ────────────────────────────────────────────────
-        dist = float(np.linalg.norm(self._goal_world - self._robot_position[:2]))
-        if dist < 0.5:
-            self.get_logger().info(
-                f'Goal reached (dist={dist:.2f} m < 0.5 m) — stopping.',
-                throttle_duration_sec=2.0,
-            )
-            self._cmd_vel_pub.publish(Twist())   # zero velocity
+        self._tick_counter += 1
+
+        # Between policy steps: republish last cmd_vel so SPOT doesn't time out.
+        if self._tick_counter % self._policy_stride != 0:
+            if self._last_twist is not None:
+                self._cmd_vel_pub.publish(self._last_twist)
             return
 
-        obs = self._build_observation()
-        if obs is None:
-            self.get_logger().warn('Waiting for sensor data …', throttle_duration_sec=5.0)
+        # Skip if a previous inference call is still running
+        if self._inference_running:
+            if self._last_twist is not None:
+                self._cmd_vel_pub.publish(self._last_twist)
             return
 
+        self._inference_running = True
+        t = threading.Thread(target=self._inference_thread, daemon=True)
+        t.start()
+
+    def _inference_thread(self):
+        """Runs in a background thread — never blocks the ROS executor."""
+        t_step_start = time.perf_counter()
         try:
-            # Debug: log observations every 5 seconds to diagnose coordinate frame issues
-            if self._step_counter % 25 == 0:  # 25 steps * 0.1s = 2.5s
+            # ── Goal-reached check ────────────────────────────────────────────
+            dist = float(np.linalg.norm(self._goal_world - self._robot_position[:2]))
+            if dist < 0.5:
                 self.get_logger().info(
-                    f'[OBS] pos={self._robot_position[:2]}, goal_world={self._goal_world}, '
-                    f'goal_rel={obs["goal"][0]}, vel_body={obs["velocity"][0, :3]}',
-                    throttle_duration_sec=1.0,
+                    f'Goal reached (dist={dist:.2f} m < 0.5 m) — stopping.',
+                    throttle_duration_sec=2.0,
+                )
+                self._cmd_vel_pub.publish(Twist())
+                return
+
+            obs = self._build_observation()
+            if obs is None:
+                self.get_logger().warn('Waiting for sensor data …', throttle_duration_sec=5.0)
+                return
+
+            # Debug: log what the model sees every 5 policy steps
+            if self._step_counter % 5 == 0:
+                pos_zc = obs['position'][0, :2]
+                goal_r = obs['goal'][0]
+                dist_g = float(np.linalg.norm(goal_r))
+                self.get_logger().info(
+                    f'[model] pos=({pos_zc[0]:+.2f}, {pos_zc[1]:+.2f})  '
+                    f'goal=({goal_r[0]:+.2f}, {goal_r[1]:+.2f})  dist={dist_g:.2f}m  '
+                    f'vel=({obs["velocity"][0,0]:+.2f}, {obs["velocity"][0,1]:+.2f})'
                 )
             self._step_counter += 1
 
-            outs, self._rssm_state = self._agent.policy(
-                obs, self._rssm_state, mode='eval'
+            t_obs_done = time.perf_counter()
+
+            with self._inference_lock:
+                t_inf_start = time.perf_counter()
+                outs, self._rssm_state = self._agent.policy(
+                    obs, self._rssm_state, mode='eval'
+                )
+                self._is_first_step = False
+                t_inf_done = time.perf_counter()
+
+            t_total = t_inf_done - t_step_start
+            t_inf   = t_inf_done - t_inf_start
+            t_build = t_obs_done - t_step_start
+            self.get_logger().info(
+                f'[TIMING] total={t_total:.3f}s  build_obs={t_build:.3f}s  jax_policy={t_inf:.3f}s'
             )
-            self._is_first_step = False
 
-            # action shape: (1, 4) → extract first (and only) batch element
             action = np.array(outs['action'][0], dtype=np.float32)
-
             self._decode_and_publish(action)
 
         except Exception as e:
             self.get_logger().error(f'Policy inference error: {e}')
             import traceback
             self.get_logger().error(traceback.format_exc())
+        finally:
+            self._inference_running = False
 
     # ──────────────────────────────────────────────────────────────────────────
     # ACTION DECODING
@@ -582,17 +991,26 @@ class DreamerPolicyNode(Node):
 
     def _decode_and_publish(self, action: np.ndarray):
         """
-        Decode 4D action vector to ROS commands exactly as spot.py._action() does.
+        Decode 4D action vector to ROS commands exactly as spot.py._action() does,
+        corrected for SPOT's physical velocity asymmetry.
 
-          action[3] > 0  → HINT_TROT,   max_vel = 2.0 m/s
-          action[3] <= 0 → HINT_CRAWL,  max_vel = 1.0 m/s
+          action[3] > 0  → HINT_TROT,   max_vel = 2.0 m/s (vx), 1.0 m/s (vy)
+          action[3] <= 0 → HINT_CRAWL,  max_vel = 1.0 m/s (vx), 0.5 m/s (vy)
 
-          vel_x   = action[0] * max_vel
-          vel_y   = action[1] * max_vel
-          vel_yaw = action[2] * 1.0
+          vel_x   = action[0] * max_vel          (forward/backward)
+          vel_y   = action[1] * (max_vel / 2.0)  (lateral — SPOT caps vy at half vx)
+          vel_yaw = action[2] * 1.0              (rotation, ±1.0 rad/s max)
         """
-        gait    = _HINT_TROT if action[3] > 0 else _HINT_CRAWL
-        max_vel = 2.0        if action[3] > 0 else 1.0
+        # Determine gait and max velocity
+        if self._disable_gait_selection:
+            # Use fixed gait mode regardless of action[3]
+            fixed_use_trot = self._fixed_gait_mode.lower() == 'trot'
+            gait    = _HINT_TROT if fixed_use_trot else _HINT_CRAWL
+            max_vel = 2.0        if fixed_use_trot else 1.0
+        else:
+            # Standard behavior: use action[3] to select gait
+            gait    = _HINT_TROT if action[3] > 0 else _HINT_CRAWL
+            max_vel = 2.0        if action[3] > 0 else 1.0
 
         # Clip to SPOT's hard API limits (tanh can slightly exceed ±1.0).
         # Use 1.5 instead of 1.6 for angular: SPOT's check is strictly > ±1.6
@@ -603,15 +1021,21 @@ class DreamerPolicyNode(Node):
         vel_x   = action[0]
         if self._invert_action_x_sign:
             vel_x = -vel_x
-        vel_x   = float(np.clip(vel_x * max_vel, -_MAX_LIN, _MAX_LIN))
-        vel_y   = float(np.clip(action[1] * max_vel, -_MAX_LIN, _MAX_LIN))
-        vel_yaw = float(np.clip(action[2] * 1.0,     -_MAX_YAW, _MAX_YAW))
+        vel_x   = float(np.clip(vel_x * max_vel,           -_MAX_LIN, _MAX_LIN))
+        # SPOT's physical vy limit is half of vx: 1.0 m/s (trot), 0.5 m/s (crawl).
+        # Training's spot.py uses action[1]*max_vel for vy (same as vx), but the
+        # real robot caps vy at max_vel/2 — so we must match that here to avoid the
+        # policy commanding lateral velocities that are never actually achieved.
+        vel_y   = float(np.clip(action[1] * (max_vel / 2.0), -_MAX_LIN, _MAX_LIN))
+        # Yaw: action[2] in [-1,1] * 1.0 → ±1.0 rad/s, well within SPOT's ±1.6 limit.
+        vel_yaw = float(np.clip(action[2] * 1.0,             -_MAX_YAW, _MAX_YAW))
 
         # ── Publish cmd_vel ───────────────────────────────────────────────────
         twist = Twist()
         twist.linear.x  = vel_x
         twist.linear.y  = vel_y
         twist.angular.z = vel_yaw
+        self._last_twist = twist
         self._cmd_vel_pub.publish(twist)
 
         # ── Request gait change (non-blocking) ────────────────────────────────
@@ -630,7 +1054,7 @@ class DreamerPolicyNode(Node):
             f'[policy] raw=({action[0]:+.3f},{action[1]:+.3f},{action[2]:+.3f},{action[3]:+.3f})'
             f'  →  vx={vel_x:+.2f} vy={vel_y:+.2f} vyaw={vel_yaw:+.2f}  '
             f'gait={"TROT" if gait == _HINT_TROT else "CRAWL"}  dist_to_goal={dist:.2f}m',
-            throttle_duration_sec=2.0,
+            throttle_duration_sec=0.5,
         )
 
 
@@ -642,6 +1066,10 @@ def main(args=None):
     except KeyboardInterrupt:
         node.get_logger().info('Shutting down …')
     finally:
+        # Signal background threads to stop
+        node._inference_running = False
+        node._keyboard_running = False
+        import time; time.sleep(0.3)
         node.destroy_node()
         rclpy.try_shutdown()   # no-op if already shut down by signal handler
 

@@ -162,11 +162,11 @@ rsync -avz --progress --partial --append-verify --no-perms -e "ssh -J mjheemsker
 apptainer build   --tmpdir /media/maurits-heemskerk/69987a47-b840-4db7-9f8b-7cc05f14d09e2/tmp   /media/maurits-heemskerk/69987a47-b840-4db7-9f8b-7cc05f14d09e2/dreamer_spot.sif   docker-daemon://dreamer_spot_cuda12:latest
 
 ## copy apptainer to DAIC
-rsync -avz --progress   /media/maurits-heemskerk/69987a47-b840-4db7-9f8b-7cc05f14d09e2/dreamer_spot.sif   mjheemskerk@login.daic.tudelft.nl:/home/nfs/mjheemskerk/
+rsync -avz --progress --partial --append-verify --no-perms -e "ssh -J mjheemskerk@student-linux.tudelft.nl"  /media/maurits-heemskerk/69987a47-b840-4db7-9f8b-7cc05f14d09e3/dreamer_spot.sif   mjheemskerk@login.daic.tudelft.nl:/tudelft.net/staff-umbrella/openbots/mjheemskerk/spot_data
 
 
 ## sinteractive:
-sinteractive --mem=96G --nodes=1 --ntasks=1 --gres=gpu:1 --cpus-per-task=8 --time=4:00:00 
+sinteractive  --nodes=1 --ntasks=1 --gres=gpu:1 
 
 ## run training in sinteractive: 
 apptainer exec --cleanenv --nv \
@@ -202,7 +202,109 @@ rsync -avz --progress --exclude='replay' \
 
 ## run policy:
 
-ros2 launch dreamer_deployment dreamer_deployment.launch.py   checkpoint_path:=/home/ob/dreamer_results_local/dreamer-results-20260316-104505-informedlargeRSSM/checkpoint.ckpt
+# Checkpoint path is set in params.yaml — just launch:
+ros2 launch dreamer_deployment dreamer_deployment.launch.py
 
-# with target goal (x/y are RELATIVE to robot's current position)
-ros2 topic pub --once /spot/policy/goal   geometry_msgs/msg/PointStamped   "{header: {frame_id: 'odom'}, point: {x: 2.0, y: 0.0, z: 0.0}}"
+# Or override checkpoint and gait selection inline:
+ros2 launch dreamer_deployment dreamer_deployment.launch.py \
+  checkpoint_path:=/home/ob/dreamer_results_local/dreamer-results-20260326-104745-xlargerssm/checkpoint.ckpt \
+  disable_gait_selection:=true \
+  fixed_gait_mode:=trot
+
+# Set goal — x/y offset in robot BODY frame (x=forward, y=left)
+# frame_id='body' (default, recommended): offset is rotated into world frame using current yaw
+ros2 topic pub --once /spot/policy/goal \
+  geometry_msgs/msg/PointStamped \
+  "{header: {frame_id: 'body'}, point: {x: 3.0, y: 0.0, z: 0.0}}"
+
+---
+
+## GPU Inference Setup (NVIDIA GTX 1050 / Pascal SM 6.1)
+
+### Problem
+The GTX 1050 in the backpack is Pascal architecture (SM 6.1). Modern JAX/jaxlib (≥0.4.35)
+bundles cuDNN 9.x which **requires SM ≥ 7.0 (Volta)**. Trying to run jaxlib 0.6.x on this GPU
+causes `CUDNN_STATUS_NOT_SUPPORTED` (status 5003) during conv autotuning.
+
+### Fix: downgrade JAX to 0.4.28
+Inside the container, install the last jaxlib release that bundles cuDNN 8.9 (supports SM 6.1):
+
+```bash
+pip install "jax[cuda12]==0.4.28" \
+    --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+```
+
+This installs `jax==0.4.28` + `jaxlib==0.4.28+cuda12.cudnn89`. Verify:
+
+```python
+import jax
+print(jax.__version__)            # 0.4.28
+print(jax.devices())              # [CudaDevice(id=0)]  ← must be GPU, not CPU
+```
+
+### Fix: chex + optax upgrade (prevents `jax.core.Shape` KeyError)
+The JAX 0.4.28 API changed `jax.core.Shape`; old chex/optax crash on checkpoint load:
+
+```bash
+pip install -U chex optax
+```
+
+### Fix: GPU memory pre-allocation (prevents OOM during XLA autotuning)
+Set in `dreamer_deployment.launch.py` (already present):
+
+```python
+env = {
+    'XLA_FLAGS': '--xla_gpu_strict_conv_algorithm_picker=false',
+    'XLA_PYTHON_CLIENT_PREALLOCATE': 'false',
+}
+```
+
+`XLA_PYTHON_CLIENT_PREALLOCATE=false` stops JAX from grabbing all 4 GiB upfront so the
+conv autotuner has room to work. Without this the GTX 1050 OOMs.
+
+### Fix: enable GPU in docker_run.sh
+The container must be started with GPU access:
+
+```bash
+# In docker_run.sh — add to docker run args:
+--gpus all
+```
+
+Also requires NVIDIA Container Toolkit on the host:
+
+```bash
+sudo apt-get install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+```
+
+### Fix: install NVIDIA Container Toolkit inside container (if needed)
+If `nvidia-smi` works on the host but not inside the container:
+
+```bash
+# Inside container:
+apt-get update && apt-get install -y nvidia-container-toolkit
+```
+
+### Expected performance after setup
+- **First call**: ~15s (one-time JIT compilation / XLA tuning)
+- **Subsequent calls**: ~20–30 ms per policy step (fast enough for 3.5 Hz)
+- **Model memory note**: Both `xlargerssm` (deter=4096) and `dyn1.0` (also deter=4096) 
+  need ~2.9 GiB at float32. GTX 1050 has only 4 GiB total. Set `jax_precision: float16` 
+  in params.yaml to reduce to ~1.5 GiB. Checkpoint must be trained with matching precision.
+
+### Params in params.yaml for GPU mode
+
+```yaml
+jax_platform: gpu
+jax_precision: float16    # Required for dyn1.0 / xlargerssm on GTX 1050 (both deter=4096)
+```
+
+### Summary of version pins (inside openbots container)
+
+| Package | Version | Reason |
+|---------|---------|--------|
+| `jax` | 0.4.28 | Last version with cuDNN 8.9 (supports SM 6.1 Pascal) |
+| `jaxlib` | 0.4.28+cuda12.cudnn89 | Paired with jax 0.4.28 |
+| `chex` | latest (≥0.1.86) | Fixes `jax.core.Shape` KeyError on checkpoint load |
+| `optax` | latest (≥0.2.x) | Same fix as chex |

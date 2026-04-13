@@ -5,7 +5,7 @@
       # ── Checkpoint ─────────────────────────────────────────────────────────
       # Change this path to switch between training sessions.
       # The config.yaml next to the checkpoint is loaded automatically.
-      checkpoint_path: "/home/ob/dreamer_results_local/ablation-dyn1.0-20260327-153959/checkpoint.ckpt"
+      checkpoint_path: "/home/ob/dreamer_results_local/batch64/checkpoint.ckpt"
 
       # Optional override path to informed-dreamer root (folder containing dreamerv3/).
       # Leave empty to auto-discover in common host/container locations.

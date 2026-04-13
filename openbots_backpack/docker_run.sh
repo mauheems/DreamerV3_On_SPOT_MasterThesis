@@ -1,6 +1,6 @@
 #!/bin/bash
 
-IMAGE_NAME="openbots"
+IMAGE_NAME="openbots:deployment"
 
 echo "Launching Docker container from image: $IMAGE_NAME"
 

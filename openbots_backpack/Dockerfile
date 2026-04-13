@@ -124,6 +124,14 @@ RUN source /opt/ros/humble/setup.bash && \
     cd /home/ob/openbots_ws && \
     colcon build --symlink-install
 
+# Re-pin JAX after install_spot_ros2.sh and colcon build, which may upgrade jax/jaxlib.
+# jax[cuda12]==0.4.28 is the last release bundling cuDNN 8.9 (supports Pascal SM 6.1).
+# numpy==1.23.5 is pinned for ROS cv_bridge compatibility.
+RUN sudo pip3 install --no-cache-dir \
+    "numpy==1.23.5" \
+    "jax[cuda12]==0.4.28" \
+    --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
 RUN echo "source /opt/ros/humble/setup.bash" >> /home/ob/.bashrc
 
 ENTRYPOINT ["/usr/local/bin/fix_hosts.sh"]

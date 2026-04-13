@@ -151,6 +151,7 @@ class DreamerPolicyNode(Node):
         self._latest_odometry    = None   # nav_msgs/Odometry
         self._latest_terrain     = np.zeros((self._ter_h, self._ter_w), dtype=np.float32)
         self._robot_position     = np.zeros(3, dtype=np.float32)  # x, y, z
+        self._last_valid_observation = None  # cache last good observation for robustness to sensor lag
 
         # Goal in world frame; set via /spot/policy/set_goal service
         self._goal_world         = None   # np.float32 (2,) — [x, y]
@@ -168,6 +169,7 @@ class DreamerPolicyNode(Node):
         self._inference_lock    = threading.Lock()   # guards _rssm_state
         self._inference_running = False              # prevents overlapping calls
         self._last_twist        = None               # held and republished between policy steps
+        self._prev_vel          = np.zeros(3, dtype=np.float32)  # [vx, vy, vyaw] of previous cmd for rate limiting
 
         # ── Keyboard input thread ─────────────────────────────────────────────
         # Listen for 'r' key in terminal to trigger reset without reloading agent
@@ -185,10 +187,22 @@ class DreamerPolicyNode(Node):
         # ============ DREAMER AGENT ============
         self._agent    = None
         self._rssm_state = None           # recurrent state maintained between steps
+        self._latest_obs_for_record = None  # obs snapshot used by recorder
+
+        # ── Command recording ─────────────────────────────────────────────────
+        ckpt_dir = Path(checkpoint_path).parent
+        self._recordings_dir = ckpt_dir / 'recordings'
+        self._recordings_dir.mkdir(parents=True, exist_ok=True)
+        self._recording_buffer: list = []
+        self._recording_active: bool = False
+        self._recording_lock = threading.Lock()
+        self.get_logger().info(f'Recording directory: {self._recordings_dir}')
+
         self._load_agent(checkpoint_path)
 
         # ============ SUBSCRIBERS ============
         # Mirror the exact topics from episode_bag_recorder.py
+        self.get_logger().info('Creating subscriptions with sensor QoS ...')
         self.create_subscription(
             Image,
             '/camera/frontmiddle_virtual/image',
@@ -207,6 +221,7 @@ class DreamerPolicyNode(Node):
             self._terrain_callback,
             rclpy.qos.qos_profile_sensor_data,
         )
+        self.get_logger().info('Subscriptions created. Waiting for topic publishers ...')
 
         # ============ PUBLISHERS ============
         # Primary output: velocity commands consumed by spot_driver
@@ -242,23 +257,21 @@ class DreamerPolicyNode(Node):
             self._control_loop,
         )
         
-        # ============ KEYBOARD INPUT ============
-        # Start background thread for keyboard 'r' reset
-        self._keyboard_running = True
-        self._keyboard_thread = threading.Thread(target=self._keyboard_listener, daemon=True)
-        self._keyboard_thread.start()
-        self.get_logger().info('⌨️  Press "r" in this terminal to reset policy state')
-        
         # ============ SENSOR WARMUP ============
         # Wait for all sensors to connect and deliver at least one message.
         # This handles restart scenarios where subscriptions need time to reconnect.
         self.get_logger().info('Waiting for sensor data …')
-        self._wait_for_sensors(timeout_sec=30.0)
-        
-        # Start goal input thread (asks for initial coordinates)
-        self._goal_input_thread = threading.Thread(target=self._prompt_for_goal, daemon=True)
-        self._goal_input_thread.start()
-        
+        self._wait_for_sensors(timeout_sec=5.0)  # Reduced from 30s: checkpoint loads fast now
+
+        # ============ TERMINAL INPUT ============
+        # Single stdin thread handles goal prompts AND reset commands.
+        # Previously two threads (readchar keyboard_listener + input() goal_prompt)
+        # fought over stdin — readchar put the tty in raw mode and swallowed all
+        # keystrokes before input() could see them.
+        self._keyboard_running = True
+        self._stdin_thread = threading.Thread(target=self._stdin_handler, daemon=True)
+        self._stdin_thread.start()
+
         self.get_logger().info('✓ All sensors ready. Policy node initialised.')
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -307,6 +320,10 @@ class DreamerPolicyNode(Node):
                 'jax.jit': True,
                 'batch_size': 1,
                 'batch_length': 1,
+                # Reduce imagination horizon for init-only trace to cut peak GPU
+                # memory during XLA compilation.  The full imag_horizon is only
+                # needed for training; inference (policy()) never uses it.
+                'imag_horizon': 1,
             })
 
             # ── Rebuild observation and action spaces matching spot.py ─────────
@@ -332,9 +349,13 @@ class DreamerPolicyNode(Node):
 
             # Inject optax.transforms shim: checkpoints pickled with older optax
             # reference 'optax.transforms' which no longer exists as a submodule.
+            self.get_logger().info('Setting up optax shim...')
             self._patch_optax_transforms()
+            
+            self.get_logger().info(f'Loading checkpoint from: {checkpoint_path}')
             checkpoint = embodied.Checkpoint()
             checkpoint.agent = self._agent
+            self.get_logger().info('Calling checkpoint.load()...')
             checkpoint.load(str(checkpoint_path), keys=['agent'])
 
             self.get_logger().info(f'✓ Agent loaded from {checkpoint_path}')
@@ -342,7 +363,9 @@ class DreamerPolicyNode(Node):
         except Exception as e:
             self.get_logger().error(f'Failed to load agent: {e}')
             import traceback
-            self.get_logger().error(traceback.format_exc())
+            self.get_logger().error('Full traceback:')
+            for line in traceback.format_exc().split('\n'):
+                self.get_logger().error(line)
 
     def _patch_optax_transforms(self):
         """
@@ -459,7 +482,7 @@ class DreamerPolicyNode(Node):
     # SENSOR WARMUP
     # ──────────────────────────────────────────────────────────────────────────
 
-    def _wait_for_sensors(self, timeout_sec: float = 30.0):
+    def _wait_for_sensors(self, timeout_sec: float = 5.0):
         """
         Block until all sensors have delivered at least one message.
         This handles restart scenarios where subscriptions need time to reconnect.
@@ -516,6 +539,8 @@ class DreamerPolicyNode(Node):
             
             img = cv2.resize(img, (self._img_w, self._img_h), interpolation=cv2.INTER_LINEAR)
             self._latest_image = img.astype(np.uint8)
+            if not self._sensor_ready['image']:
+                self.get_logger().info('✓ Image subscription connected')
             self._sensor_ready['image'] = True
         except Exception as e:
             self.get_logger().warn(f'Image decode error: {e}')
@@ -525,6 +550,8 @@ class DreamerPolicyNode(Node):
         self._latest_odometry = msg
         p = msg.pose.pose.position
         self._robot_position = np.array([p.x, p.y, p.z], dtype=np.float32)
+        if not self._sensor_ready['odometry']:
+            self.get_logger().info('✓ Odometry subscription connected')
         self._sensor_ready['odometry'] = True
 
     def _terrain_callback(self, msg: OccupancyGrid):
@@ -538,6 +565,8 @@ class DreamerPolicyNode(Node):
             if (h, w) != (self._ter_h, self._ter_w):
                 grid = cv2.resize(grid, (self._ter_w, self._ter_h), interpolation=cv2.INTER_LINEAR)
             self._latest_terrain = grid
+            if not self._sensor_ready['terrain']:
+                self.get_logger().info('✓ Terrain subscription connected')
             self._sensor_ready['terrain'] = True
         except Exception as e:
             self.get_logger().warn(f'Terrain decode error: {e}')
@@ -604,71 +633,92 @@ class DreamerPolicyNode(Node):
             f'  →  model sees: pos=(0.00, 0.00)  goal=({expected_rel_x:.2f}, {expected_rel_y:.2f})'
             f'  dist={np.hypot(expected_rel_x, expected_rel_y):.2f}m  yaw0={np.degrees(yaw):.1f}°'
         )
+        self._start_recording()
 
     # ──────────────────────────────────────────────────────────────────────────
     # KEYBOARD INPUT
     # ──────────────────────────────────────────────────────────────────────────
 
-    def _keyboard_listener(self):
+    def _stdin_handler(self):
         """
-        Background thread that listens for 'r' key press in the terminal.
-        When 'r' is detected, triggers an episode reset without reloading the agent.
-        """
-        import sys
-        
-        # Try to use readchar for cleaner input if available, otherwise fall back to basic input
-        try:
-            import readchar
-            
-            self.get_logger().debug('Using readchar for keyboard input')
-            
-            while self._keyboard_running:
-                try:
-                    char = readchar.readchar()
-                    if char.lower() == 'r':
-                        self._trigger_reset_from_keyboard()
-                except (EOFError, KeyboardInterrupt):
-                    # Terminal closed or user pressed Ctrl+C (handled by main)
-                    break
-                except Exception as e:
-                    self.get_logger().debug(f'Keyboard read error: {e}')
-                    time.sleep(0.1)
-        except ImportError:
-            # Fallback: use simple input() with timeout (less responsive but works everywhere)
-            self.get_logger().debug('readchar not available — using stdin polling (less responsive)')
-            
-            import select
-            
-            while self._keyboard_running:
-                try:
-                    # Non-blocking read for Unix systems
-                    if hasattr(select, 'select'):
-                        ready, _, _ = select.select([sys.stdin], [], [], 0.1)
-                        if ready:
-                            char = sys.stdin.read(1).lower()
-                            if char == 'r':
-                                self._trigger_reset_from_keyboard()
-                    else:
-                        # Windows fallback: just sleep (no non-blocking stdin)
-                        time.sleep(0.1)
-                except Exception as e:
-                    self.get_logger().debug(f'Keyboard poll error: {e}')
-                    time.sleep(0.1)
+        Single background thread for all terminal interaction.
 
-    def _trigger_reset_from_keyboard(self):
-        """Reset triggered by 'r' key press in terminal."""
-        self.get_logger().info('⟲ Reset triggered by keyboard ("r" pressed)')
-        yaw = 0.0
-        if self._latest_odometry is not None:
-            q = self._latest_odometry.pose.pose.orientation
-            qx, qy, qz, qw = q.x, q.y, q.z, q.w
-            yaw = np.arctan2(2*(qw*qz + qx*qy), 1 - 2*(qy*qy + qz*qz))
-        
-        self._reset_episode_state(yaw, self._latest_odometry)
-        
-        # Prompt for new goal in a separate thread (non-blocking)
-        goal_thread = threading.Thread(target=self._prompt_for_goal, daemon=True)
-        goal_thread.start()
+        Prompts for a goal (body frame: x=forward, y=left), then waits for
+        any Enter key press to reset and re-prompt.  Uses plain input() so
+        there is no stdin contention — the old readchar keyboard_listener
+        was putting the tty in raw mode and swallowing the goal prompt input.
+        """
+        while self._keyboard_running:
+            try:
+                # ── Goal prompt ───────────────────────────────────────────
+                print('\n──────────────────────────────────────────────────────')
+                print('  🎯  Set goal  (body frame: x = forward m, y = left m)')
+                print('──────────────────────────────────────────────────────')
+
+                while True:
+                    try:
+                        x_str = input('  X (forward, m): ').strip()
+                        if not x_str:
+                            continue
+                        x = float(x_str)
+                        break
+                    except ValueError:
+                        print(f'  ⚠  Not a number — try again.')
+
+                while True:
+                    try:
+                        y_str = input('  Y (lateral, m): ').strip()
+                        if not y_str:
+                            y_str = '0'
+                        y = float(y_str)
+                        break
+                    except ValueError:
+                        print(f'  ⚠  Not a number — try again.')
+
+                # Rotate body-frame offset into world frame (mirrors _goal_callback)
+                odom = self._latest_odometry
+                yaw = 0.0
+                if odom is not None:
+                    q = odom.pose.pose.orientation
+                    yaw = float(np.arctan2(
+                        2*(q.w*q.z + q.x*q.y),
+                        1 - 2*(q.y*q.y + q.z*q.z)
+                    ))
+                dx_world = np.cos(yaw) * x - np.sin(yaw) * y
+                dy_world = np.sin(yaw) * x + np.cos(yaw) * y
+                abs_x = float(self._robot_position[0]) + dx_world
+                abs_y = float(self._robot_position[1]) + dy_world
+                self._goal_world = np.array([abs_x, abs_y], dtype=np.float32)
+                self._reset_episode_state(yaw, odom)
+
+                rel_x = np.cos(yaw)*(abs_x-self._robot_position[0]) + np.sin(yaw)*(abs_y-self._robot_position[1])
+                rel_y = -np.sin(yaw)*(abs_x-self._robot_position[0]) + np.cos(yaw)*(abs_y-self._robot_position[1])
+                self.get_logger().info(
+                    f'🎯 Goal set [terminal]: body=({x:.2f}, {y:.2f})'
+                    f'  →  model sees: goal=({rel_x:.2f}, {rel_y:.2f})'
+                    f'  dist={np.hypot(rel_x, rel_y):.2f}m  yaw0={np.degrees(yaw):.1f}°'
+                )
+                self._start_recording()
+
+                # ── Wait for reset ────────────────────────────────────────
+                input('\n⌨️  Press Enter to set a new goal … ')
+                self.get_logger().info('⟲ Reset — enter new goal.')
+                yaw2 = 0.0
+                odom2 = self._latest_odometry
+                if odom2 is not None:
+                    q2 = odom2.pose.pose.orientation
+                    yaw2 = float(np.arctan2(
+                        2*(q2.w*q2.z + q2.x*q2.y),
+                        1 - 2*(q2.y*q2.y + q2.z*q2.z)
+                    ))
+                self._reset_episode_state(yaw2, odom2)
+
+            except (EOFError, KeyboardInterrupt):
+                self.get_logger().info('Terminal input closed.')
+                break
+            except Exception as e:
+                self.get_logger().debug(f'stdin handler error: {e}')
+                time.sleep(0.5)
 
     # ──────────────────────────────────────────────────────────────────────────
     # RESET SERVICE & EPISODE STATE
@@ -703,9 +753,11 @@ class DreamerPolicyNode(Node):
             yaw: Current robot yaw (rad) in world frame
             odom: Latest odometry message (may be None)
         """
+        self._save_recording('reset')
         self._is_first_step = True
         self._rssm_state    = None
         self._last_twist    = None   # clear stale command
+        self._prev_vel      = np.zeros(3, dtype=np.float32)  # reset rate limiter
         self._tick_counter  = 0      # fire inference on next stride tick
 
         # Snapshot episode origin for zero-centering (matches training data convention)
@@ -725,37 +777,6 @@ class DreamerPolicyNode(Node):
     # ──────────────────────────────────────────────────────────────────────────
     # INTERACTIVE GOAL INPUT
     # ──────────────────────────────────────────────────────────────────────────
-
-    def _prompt_for_goal(self):
-        """
-        Prompt user for goal coordinates (x, y) in a blocking, user-friendly way.
-        This runs in a background thread so it doesn't block ROS operations.
-        """
-        try:
-            # Get x coordinate
-            while True:
-                try:
-                    x_str = input('\n🎯 Enter goal X coordinate (m): ').strip()
-                    x = float(x_str)
-                    break
-                except ValueError:
-                    self.get_logger().warn(f'Invalid input "{x_str}". Please enter a number.')
-            
-            # Get y coordinate
-            while True:
-                try:
-                    y_str = input('🎯 Enter goal Y coordinate (m): ').strip()
-                    y = float(y_str)
-                    break
-                except ValueError:
-                    self.get_logger().warn(f'Invalid input "{y_str}". Please enter a number.')
-            
-            # Apply the goal
-            self._set_goal_from_input(x, y)
-        
-        except (EOFError, KeyboardInterrupt):
-            # User pressed Ctrl+D or Ctrl+C
-            self.get_logger().info('Goal input cancelled.')
 
     def _set_goal_from_input(self, x: float, y: float):
         """
@@ -788,6 +809,56 @@ class DreamerPolicyNode(Node):
             f'  →  model sees: pos=(0.00, 0.00)  goal=({expected_rel_x:.2f}, {expected_rel_y:.2f})'
             f'  dist={np.hypot(expected_rel_x, expected_rel_y):.2f}m  yaw0={np.degrees(yaw):.1f}°'
         )
+        self._start_recording()
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # COMMAND RECORDING
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _start_recording(self):
+        """Start a new recording episode (called when a goal is set)."""
+        with self._recording_lock:
+            self._recording_buffer = []
+            self._recording_active = True
+        self.get_logger().info(f'Recording started → {self._recordings_dir}')
+
+    def _save_recording(self, reason: str):
+        """
+        Flush the recording buffer to a .npz file and stop recording.
+        Skips silently if no recording is active or the buffer is empty.
+        reason: 'goal_reached' | 'reset' | 'shutdown'
+        """
+        with self._recording_lock:
+            if not self._recording_active:
+                return
+            self._recording_active = False
+            buf = self._recording_buffer
+            self._recording_buffer = []
+
+        if not buf:
+            return
+
+        timestamp = time.strftime('%Y%m%d_%H%M%S')
+        fname = self._recordings_dir / f'episode_{timestamp}_{reason}.npz'
+        try:
+            np.savez(
+                str(fname),
+                t            = np.array([s['t']           for s in buf], dtype=np.float64),
+                action       = np.array([s['action']       for s in buf], dtype=np.float32),
+                vel_x        = np.array([s['vel_x']        for s in buf], dtype=np.float32),
+                vel_y        = np.array([s['vel_y']        for s in buf], dtype=np.float32),
+                vel_yaw      = np.array([s['vel_yaw']      for s in buf], dtype=np.float32),
+                gait         = np.array([s['gait']         for s in buf], dtype=np.int32),
+                dist_to_goal = np.array([s['dist_to_goal'] for s in buf], dtype=np.float32),
+                pos_zc       = np.array([s['pos_zc']       for s in buf], dtype=np.float32),
+                goal_zc      = np.array([s['goal_zc']      for s in buf], dtype=np.float32),
+                velocity_obs = np.array([s['velocity_obs'] for s in buf], dtype=np.float32),
+            )
+            self.get_logger().info(
+                f'Recording saved ({len(buf)} steps, reason={reason}): {fname.name}'
+            )
+        except Exception as e:
+            self.get_logger().error(f'Failed to save recording: {e}')
 
     # ──────────────────────────────────────────────────────────────────────────
     # OBSERVATION BUILDING
@@ -806,9 +877,16 @@ class DreamerPolicyNode(Node):
           is_first     bool
           is_last      bool
           is_terminal  bool
+        
+        If fresh sensor data isn't available, reuses the last valid observation
+        to handle transient network lag or sensor publishing delays.
         """
         odom = self._latest_odometry
         if odom is None or self._latest_image is None:
+            # Sensor lag — reuse last valid observation if available
+            if self._last_valid_observation is not None:
+                return self._last_valid_observation
+            # No valid observation cached yet (startup)
             return None
 
         # Extract orientation for velocity rotation
@@ -858,21 +936,34 @@ class DreamerPolicyNode(Node):
             position = raw_pos
             orientation = np.array([qx, qy, qz, qw], dtype=np.float32)
 
-        # Relative goal in ego-centric (body) frame — must match training!
-        # Training (spot.py): goal_ego = R(-yaw) @ (goal_world_zc - position_zc)
-        # Mathematically this equals R(-yaw_raw) @ (goal_raw - p_raw), so compute
-        # the delta entirely in raw odom frame then rotate by raw yaw.
+        # [NEW] Goal delta in zero-centered world frame — same frame as position.
+        # delta_zc = R(-yaw0) @ (goal_world - raw_pos)
+        # Use this with new checkpoints trained after the frame-alignment fix.
         if self._goal_world is not None:
-            dx = self._goal_world[0] - raw_pos[0]
-            dy = self._goal_world[1] - raw_pos[1]
-            # Rotate from world frame to body frame using raw yaw
-            goal_x = np.cos(yaw) * dx + np.sin(yaw) * dy
-            goal_y = -np.sin(yaw) * dx + np.cos(yaw) * dy
-            goal = np.array([goal_x, goal_y], dtype=np.float32)
+            dg = self._goal_world - raw_pos[:2]
+            if self._episode_pos0 is not None:
+                cy0 = np.cos(self._episode_yaw0)
+                sy0 = np.sin(self._episode_yaw0)
+                goal_x =  cy0 * dg[0] + sy0 * dg[1]
+                goal_y = -sy0 * dg[0] + cy0 * dg[1]
+                goal = np.array([goal_x, goal_y], dtype=np.float32)
+            else:
+                goal = dg.astype(np.float32)
             if self._invert_goal_sign:
                 goal = -goal
         else:
             goal = np.zeros(2, dtype=np.float32)
+        # [OLD] Ego-centric goal (body frame) — uncomment for old checkpoints.
+        # if self._goal_world is not None:
+        #     dx = self._goal_world[0] - raw_pos[0]
+        #     dy = self._goal_world[1] - raw_pos[1]
+        #     goal_x = np.cos(yaw) * dx + np.sin(yaw) * dy
+        #     goal_y = -np.sin(yaw) * dx + np.cos(yaw) * dy
+        #     goal = np.array([goal_x, goal_y], dtype=np.float32)
+        #     if self._invert_goal_sign:
+        #         goal = -goal
+        # else:
+        #     goal = np.zeros(2, dtype=np.float32)
 
         terrain = self._latest_terrain
 
@@ -889,6 +980,8 @@ class DreamerPolicyNode(Node):
             'is_last':      np.array([False]),
             'is_terminal':  np.array([False]),
         }
+        # Cache this valid observation for robustness to sensor lag
+        self._last_valid_observation = obs
         return obs
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -938,12 +1031,13 @@ class DreamerPolicyNode(Node):
                     f'Goal reached (dist={dist:.2f} m < 0.5 m) — stopping.',
                     throttle_duration_sec=2.0,
                 )
+                self._save_recording('goal_reached')
                 self._cmd_vel_pub.publish(Twist())
                 return
 
             obs = self._build_observation()
             if obs is None:
-                self.get_logger().warn('Waiting for sensor data …', throttle_duration_sec=5.0)
+                # During startup, wait for first sensor data
                 return
 
             # Debug: log what the model sees every 5 policy steps
@@ -976,6 +1070,7 @@ class DreamerPolicyNode(Node):
             )
 
             action = np.array(outs['action'][0], dtype=np.float32)
+            self._latest_obs_for_record = obs
             self._decode_and_publish(action)
 
         except Exception as e:
@@ -1030,6 +1125,16 @@ class DreamerPolicyNode(Node):
         # Yaw: action[2] in [-1,1] * 1.0 → ±1.0 rad/s, well within SPOT's ±1.6 limit.
         vel_yaw = float(np.clip(action[2] * 1.0,             -_MAX_YAW, _MAX_YAW))
 
+        # ── Rate limiting: cap change per step to prevent abrupt velocity jumps ─
+        # 0.5 m/s/step for linear, 0.5 rad/s/step for yaw (at 0.3 s/step this is
+        # ~1.67 m/s² acceleration limit, enough to go 0→2 m/s in 4 steps / 1.2 s).
+        _MAX_DVLIN = 0.5   # m/s per policy step
+        _MAX_DVYAW = 1.0   # rad/s per policy step (increased from 0.5 for faster turns)
+        vel_x   = float(np.clip(vel_x,   self._prev_vel[0] - _MAX_DVLIN, self._prev_vel[0] + _MAX_DVLIN))
+        vel_y   = float(np.clip(vel_y,   self._prev_vel[1] - _MAX_DVLIN, self._prev_vel[1] + _MAX_DVLIN))
+        vel_yaw = float(np.clip(vel_yaw, self._prev_vel[2] - _MAX_DVYAW, self._prev_vel[2] + _MAX_DVYAW))
+        self._prev_vel[:] = [vel_x, vel_y, vel_yaw]
+
         # ── Publish cmd_vel ───────────────────────────────────────────────────
         twist = Twist()
         twist.linear.x  = vel_x
@@ -1057,6 +1162,23 @@ class DreamerPolicyNode(Node):
             throttle_duration_sec=0.5,
         )
 
+        # ── Append to recording buffer ────────────────────────────────────────
+        with self._recording_lock:
+            if self._recording_active:
+                obs = self._latest_obs_for_record
+                self._recording_buffer.append({
+                    't':           time.time(),
+                    'action':      action.copy(),
+                    'vel_x':       np.float32(vel_x),
+                    'vel_y':       np.float32(vel_y),
+                    'vel_yaw':     np.float32(vel_yaw),
+                    'gait':        np.int32(gait),
+                    'dist_to_goal': np.float32(dist),
+                    'pos_zc':      obs['position'][0].copy() if obs is not None else np.zeros(3, np.float32),
+                    'goal_zc':     obs['goal'][0].copy() if obs is not None else np.zeros(2, np.float32),
+                    'velocity_obs': obs['velocity'][0].copy() if obs is not None else np.zeros(6, np.float32),
+                })
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -1070,6 +1192,7 @@ def main(args=None):
         node._inference_running = False
         node._keyboard_running = False
         import time; time.sleep(0.3)
+        node._save_recording('shutdown')
         node.destroy_node()
         rclpy.try_shutdown()   # no-op if already shut down by signal handler
 

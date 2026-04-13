@@ -191,19 +191,79 @@ vragen:
 -
 
 
-20/3:
-- put raw dataset on daic
-- correct paper
+31/3:
+- evaluate deconstructed terrain map as well                                CHECK
+- check with master coordiantor for final checklist and colloquia           CHECK
+- joris sijs mailen voor morgen.                                            CHECK
+- fix terrain input for world model notebook.                               CHECK
+
+
+
+1/4:
+- evaluate the actor critic in the dream. chatgpt chat!!                CHECK
+- check gait input reconstructed as well                                    
+
+2/4:
+- train smaller rssm models for deployment as well                                          CHECK
+- get last trainings from DAIC                                                              CHECK
+- check how we would the policy directly on the robot instead of laptop                     CHECK
+- check if black observations during deployment causes model to go backwards. 
+    - Check different episodes in actorcritic notebook
+- build in reset for policy node wihtout reloading policy but resetting target goal         CHECK
+- see if we can fix sensor fialure issue between policy checks                              CHECK
+- IMPORTANT: vx has 2 m/s limit but vy ofcourse not!! this needs to be trained again.       CHECK
+- think about removing crawl for now. too much noise for the model.                         CHECK
+- update docker image                                                                       CHECK
+- put checkpoints on drive
+
+5/4:
+- check actor critic quality with smaller horizon
+- check larger batch length  performance with working config 
+
+
+
+8/4:
+- check if xlarge rssm can be deployed now                          CHECK
+    - check if params float 16 for jax helps this problem 
+- check if vy command does not overreach 1 m/s                      CHECK
+- check if smaller rssm models give decent performance              CHECK
+- check if new physics loss imroves performance.                    
+- penalty for high velocity after end goal is reached.              
+- computation to position because this is also the rewardfuncton
+
+9/4: 
+- check if checkpoints are complete.                        CHECK
+- check checkpoint compressor and convert all               CHECK
+- make batch size 64 checkpoints.                           CHECK
+- remake rewards for getting close to the end goal          CHECK
+- find out why training is slow                             CHECK
+- remove multi step consistency if that helps               CHECK
+- put the raw checkpoints on hrd drive                      CHECK
+
+
+13/4: 
+- test bootstrap decrease
+- test other episodes for current checkpoints.
+- test removing position and redundant observations
+- see how to lower critic loss. and what this exactly means in the math
+- see how to lower the critic value prediction of 300 vs 0.5 imagined reward (what do these values mean)                                                    CHECK
+- see difference in rewards                              CHECK
+
+
+
+
+
+
+
 
 
 
 Suggestions for improvement of offline dreamer:
 - penalize the values of states that the World Model hasn't seen in the dataset. (vel too high)
-    - normalize velocity and orientation to valid scales.
 - data augmentation
 - penalize action if its too far away from what the data did (conversatism)
-- loss scaling -> we have 6 loss heads of which 1 image which needs the most gradients CHECK
 - since we are giving the goal position relative to the robot frame our position and orientation in world frame are redundant as observations and possible causing error for the networl
+- implement loss for decoded prior | decoded posterior instead of in latent space
 
 Suggestions for results:
 - to proof image/terrain as observations enable meaningful information. run the training without images and show performance drop.!!
@@ -211,4 +271,5 @@ Suggestions for results:
     - policy with and without images/terrain
     - policy and mask the images to see performance drop
     - policy testen op andere ondergrond als foam
+- ablation to prove that physics consistency loss increases prior performance.
 - 

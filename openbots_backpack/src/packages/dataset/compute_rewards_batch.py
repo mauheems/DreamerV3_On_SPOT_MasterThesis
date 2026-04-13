@@ -11,11 +11,11 @@ import sys
 
 # Centralized reward parameters (keep in sync with notebook REWARD_PARAMS)
 REWARD_PARAMS = {
-    'goal_threshold': 0.3,
-    'goal_reward_base': 5.0,
+    'goal_threshold': 3.0,  # Gaussian sigma: shaped reward instead of one-shot spike
+    'goal_reward_base': 0.5,  # Per-step max reward at goal (lower since accumulated every step)
     'goal_distance_reference': 5.0,
     'distance_reward_scale': 5.0,
-    'jerk_scale': 0.01,
+    'jerk_scale': 0.05,  # Increased from 0.01 to penalize jerky commands more heavily
     'instability_scale': 0.02,
     'time_penalty': 0.01,
     'velocity_error_scale': 0.04,
@@ -53,22 +53,19 @@ def compute_rewards_for_episode(states, actions, velocities, dt=0.1):
     distance_rewards = -distance_reward_scale * (distance_changes / initial_distance)
     distance_rewards = np.pad(distance_rewards, (1, 0), mode='constant', constant_values=0)
     
-    # === Component 2: Goal Reaching Reward (distance-scaled) ===
-    in_goal_region = distances < goal_threshold
-    goal_rewards = np.zeros(T)
-    if np.any(in_goal_region):
-        first_goal_idx = np.argmax(in_goal_region)
-        # Scale the one-time goal bonus linearly with initial distance
-        initial_distance = distances[0]
-        if initial_distance < 1e-6:
-            initial_distance = 1.0
-        goal_reward = goal_reward_base * (initial_distance / goal_distance_reference)
-        goal_rewards[first_goal_idx] = goal_reward
+    # === Component 2: Goal Reaching Reward (Gaussian-shaped per-step) ===
+    # Replaces one-time spike with continuous dense signal:
+    #   reward(t) = goal_reward_base * exp(-d(t)^2 / (2 * goal_threshold^2))
+    # Benefits: every timestep near goal yields reward (robot incentivized to stay),
+    # short training sequences still get useful signal when passing through goal vicinity
+    sigma = goal_threshold
+    goal_rewards = goal_reward_base * np.exp(-(distances ** 2) / (2 * sigma ** 2))
     
     # === Component 3: Action Smoothness Penalty ===
     if actions is not None and len(actions) > 1:
         action_diffs = np.diff(actions, axis=0)
         action_magnitudes = np.linalg.norm(action_diffs, axis=1)
+        # Linear penalty: large jerks cost proportionally more
         jerk_penalties = -jerk_scale * action_magnitudes
         jerk_penalties = np.pad(jerk_penalties, (1, 0), mode='constant', constant_values=0)
     else:

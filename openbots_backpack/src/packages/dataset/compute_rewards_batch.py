@@ -85,7 +85,11 @@ def compute_rewards_for_episode(states, actions, velocities, dt=0.1):
     if velocities is not None and actions is not None:
         # Compensate for known cmd->odom lag (1 sample) by shifting actions forward
         lag = 1
-        sel = [0, 1, 3]  # vx, vy, wz (4-element action space)
+        # Actions (4D): [vx_cmd, vy_cmd, vyaw_cmd, gait] → indices 0, 1, 2
+        # Velocities (6D): [vx, vy, vz, wx, wy, wz]       → indices 0, 1, 5
+        # We align vx, vy, and yaw rate (wz). Gait is not a velocity comparison.
+        act_sel_idx = [0, 1, 2]  # vx_cmd, vy_cmd, vyaw_cmd
+        vel_sel_idx = [0, 1, 5]  # vx_obs, vy_obs, wz_obs
 
         # Create shifted actions with NaN padding for edges
         shifted_actions = np.full_like(actions, np.nan)
@@ -95,8 +99,8 @@ def compute_rewards_for_episode(states, actions, velocities, dt=0.1):
             shifted_actions[lag:] = actions[:-lag]
 
         # Compute sum of squared errors only on selected axes where shifted action exists
-        act_sel = shifted_actions[:, sel]
-        vel_sel = velocities[:, sel]
+        act_sel = shifted_actions[:, act_sel_idx]
+        vel_sel = velocities[:, vel_sel_idx]
         valid_mask = ~np.isnan(act_sel).any(axis=1)
 
         velocity_alignment_penalties = np.zeros(T, dtype=float)
@@ -183,13 +187,28 @@ def main():
     
     # Determine input directory
     if args.harddrive:
-        input_dir = Path(args.harddrive) / 'processed_data'
-        print(f"Using external harddrive: {input_dir}")
+        # Check for processed_data_NoObs first (no-obstacle dataset), then fall back to processed_data
+        noobs_dir = Path(args.harddrive) / 'processed_data_NoObs'
+        default_dir = Path(args.harddrive) / 'processed_data'
+        
+        if noobs_dir.exists():
+            input_dir = noobs_dir
+            output_suffix = '_NoObs_with_rewards'
+            print(f"Using external harddrive (NoObs): {input_dir}")
+        elif default_dir.exists():
+            input_dir = default_dir
+            output_suffix = '_with_rewards'
+            print(f"Using external harddrive: {input_dir}")
+        else:
+            print(f"Error: Neither {noobs_dir} nor {default_dir} found")
+            sys.exit(1)
     elif args.input_dir:
         input_dir = Path(args.input_dir)
+        output_suffix = '_with_rewards'
     else:
         # Default: look in parent of recorded_data
         input_dir = Path("/home/maurits-heemskerk/Documents/Uni/Master_Thesis/openbots_backpack/src/packages/dataset/processed_data")
+        output_suffix = '_with_rewards'
     
     if not input_dir.exists():
         print(f"Error: Input directory not found: {input_dir}")
@@ -199,8 +218,8 @@ def main():
     if args.output_dir:
         output_dir = Path(args.output_dir)
     else:
-        # Create processed_data_with_rewards in same parent as input_dir
-        output_dir = input_dir.parent / 'processed_data_with_rewards'
+        # Create output with appropriate suffix (e.g., processed_data_NoObs_with_rewards or processed_data_with_rewards)
+        output_dir = input_dir.parent / f'processed_data{output_suffix}'
     
     output_dir.mkdir(parents=True, exist_ok=True)
     

@@ -188,6 +188,7 @@ class DreamerPolicyNode(Node):
         self._agent    = None
         self._rssm_state = None           # recurrent state maintained between steps
         self._latest_obs_for_record = None  # obs snapshot used by recorder
+        self._recording_session_id = None
 
         # ── Command recording ─────────────────────────────────────────────────
         ckpt_dir = Path(checkpoint_path).parent
@@ -359,6 +360,30 @@ class DreamerPolicyNode(Node):
             checkpoint.load(str(checkpoint_path), keys=['agent'])
 
             self.get_logger().info(f'✓ Agent loaded from {checkpoint_path}')
+
+            # ── Pre-trace mode='eval' so first real inference has no JIT delay ──
+            # _init_varibs() only traces mode='train'. The first call to
+            # agent.policy(..., mode='eval') would trigger full XLA compilation,
+            # which can take 30-60 s for large models. During that time
+            # _inference_running=True and _last_twist=None → no cmd_vel published
+            # → SPOT's command timeout fires → robot ignores subsequent commands.
+            # Warm-up here (before rclpy.spin) so compilation happens at startup,
+            # not mid-episode.
+            self.get_logger().info('Pre-tracing policy (mode=eval) — this may take 30-60 s …')
+            dummy_obs = {
+                'image':        np.zeros((1, self._img_h, self._img_w, 3), dtype=np.uint8),
+                'velocity':     np.zeros((1, 6), dtype=np.float32),
+                'position':     np.zeros((1, 3), dtype=np.float32),
+                'orientation':  np.array([[0, 0, 0, 1]], dtype=np.float32),
+                'goal':         np.zeros((1, 2), dtype=np.float32),
+                'info_terrain': np.zeros((1, self._ter_h, self._ter_w), dtype=np.float32),
+                'reward':       np.zeros((1,), dtype=np.float32),
+                'is_first':     np.array([True]),
+                'is_last':      np.array([False]),
+                'is_terminal':  np.array([False]),
+            }
+            _, _ = self._agent.policy(dummy_obs, None, mode='eval')
+            self.get_logger().info('✓ Policy trace complete — inference will be fast.')
 
         except Exception as e:
             self.get_logger().error(f'Failed to load agent: {e}')
@@ -759,6 +784,7 @@ class DreamerPolicyNode(Node):
         self._last_twist    = None   # clear stale command
         self._prev_vel      = np.zeros(3, dtype=np.float32)  # reset rate limiter
         self._tick_counter  = 0      # fire inference on next stride tick
+        self._last_valid_observation = None  # clear stale cached observation
 
         # Snapshot episode origin for zero-centering (matches training data convention)
         if odom is not None:
@@ -817,6 +843,7 @@ class DreamerPolicyNode(Node):
 
     def _start_recording(self):
         """Start a new recording episode (called when a goal is set)."""
+        self._recording_session_id = time.strftime('%Y%m%d_%H%M%S')
         with self._recording_lock:
             self._recording_buffer = []
             self._recording_active = True
@@ -838,11 +865,12 @@ class DreamerPolicyNode(Node):
         if not buf:
             return
 
-        timestamp = time.strftime('%Y%m%d_%H%M%S')
-        fname = self._recordings_dir / f'episode_{timestamp}_{reason}.npz'
+        session_id = self._recording_session_id or time.strftime('%Y%m%d_%H%M%S')
+        fname = self._recordings_dir / f'episode_{session_id}_{reason}.npz'
         try:
             np.savez(
                 str(fname),
+                session_id   = np.array(session_id),
                 t            = np.array([s['t']           for s in buf], dtype=np.float64),
                 action       = np.array([s['action']       for s in buf], dtype=np.float32),
                 vel_x        = np.array([s['vel_x']        for s in buf], dtype=np.float32),
@@ -859,6 +887,8 @@ class DreamerPolicyNode(Node):
             )
         except Exception as e:
             self.get_logger().error(f'Failed to save recording: {e}')
+        finally:
+            self._recording_session_id = None
 
     # ──────────────────────────────────────────────────────────────────────────
     # OBSERVATION BUILDING
@@ -1005,15 +1035,19 @@ class DreamerPolicyNode(Node):
         self._tick_counter += 1
 
         # Between policy steps: republish last cmd_vel so SPOT doesn't time out.
+        # Publish zeros if no command has been produced yet — this keeps the
+        # SPOT command stream alive even before the first inference step.
         if self._tick_counter % self._policy_stride != 0:
-            if self._last_twist is not None:
-                self._cmd_vel_pub.publish(self._last_twist)
+            self._cmd_vel_pub.publish(
+                self._last_twist if self._last_twist is not None else Twist()
+            )
             return
 
         # Skip if a previous inference call is still running
         if self._inference_running:
-            if self._last_twist is not None:
-                self._cmd_vel_pub.publish(self._last_twist)
+            self._cmd_vel_pub.publish(
+                self._last_twist if self._last_twist is not None else Twist()
+            )
             return
 
         self._inference_running = True
@@ -1037,7 +1071,13 @@ class DreamerPolicyNode(Node):
 
             obs = self._build_observation()
             if obs is None:
-                # During startup, wait for first sensor data
+                # Sensors not yet ready — log throttled warning so this is visible
+                self.get_logger().warn(
+                    'Inference skipped: observation not available '
+                    '(image or odometry not yet received). '
+                    'Check /camera/frontmiddle_virtual/image and /odometry topics.',
+                    throttle_duration_sec=5.0,
+                )
                 return
 
             # Debug: log what the model sees every 5 policy steps
@@ -1199,4 +1239,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-

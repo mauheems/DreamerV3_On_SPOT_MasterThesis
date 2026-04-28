@@ -227,9 +227,8 @@ vragen:
     - check if params float 16 for jax helps this problem 
 - check if vy command does not overreach 1 m/s                      CHECK
 - check if smaller rssm models give decent performance              CHECK
-- check if new physics loss imroves performance.                    
-- penalty for high velocity after end goal is reached.              
-- computation to position because this is also the rewardfuncton
+- penalty for high velocity after end goal is reached.              CHECK
+- computation to position because this is also the rewardfuncton    CHECK
 
 9/4: 
 - check if checkpoints are complete.                        CHECK
@@ -242,21 +241,91 @@ vragen:
 
 
 13/4: 
-- test bootstrap decrease
-- test other episodes for current checkpoints.
-- test removing position and redundant observations
-- see how to lower critic loss. and what this exactly means in the math
+- test other episodes for current checkpoints.              CHECK
+- test removing position and redundant observations         
+- see how to lower critic loss. and what this exactly means in the math CHECK
 - see how to lower the critic value prediction of 300 vs 0.5 imagined reward (what do these values mean)                                                    CHECK
 - see difference in rewards                              CHECK
 
+14/4:
+- test bootstrap decrease
+- check if new physics loss imroves performance.           
+- check if new rewards lets robot stay near end         NOPE
+- check if negative x target goal turns robot around.   NOPE      
+- IMPORTANT what if fully offline does not work?        CHECK
+- and how would we finetune online??
+- is the critic bad or are the dreams bad?              BOTH
 
 
+15/4:
+- test lower imagination horizons for training         CHECK 
+- finish NoObs dataset                                  CHECK
+- train on NoObs dataset                                CHECK
+- do we need images even for obstacles.                 CHECK
 
 
+16/4:
 
 
+17/4:
+- test noobs dataset.                                   CHECK
+- test low imag checkpoints                             CHECK
+- recompute rewards for noobs and check them            CHECK                        
+- train online with noobs       
+- Fix how to finetune model on SPOT online              
+- train on terrain only
+- train posterior critic
+- look at warm up during training     
+- remove redundant velocities for noobs training        CHECK
+- see if we can change the task to action space.
 
 
+20/4:
+- test the most basic obs space trained model and look at latent drift
+- discuss possible thesis topics
+    - Quantifying Latent Drift in RSSM-Based World Models
+    - Decoupling World Model Quality from Policy Performance in DreamerV3
+    - From Vision to State: Does Observation Modality Affect World Model Stability?”.
+
+21/4: 
+- reconvert the dataset noobs.          CHECK
+- tune rewards                          CHEck
+- recompute rewards                     CHECK
+- retrain                               CHECK
+
+
+- static target goal'
+- add data for walking backwards and not reaching the target CHECK
+- add penalty when reach the goal and move further.          CHECK
+- record rosbag during policy deployment if anything weird happens
+
+22/4:
+- ablation for static goal position                                             CHECK
+- ablation for horizon on goal position                                         CHECK
+- ablation on position including in obsrvation and see what goal target does    CHECK
+- ablation xlarge rssm small actorcritic                                        CHECK
+- check mounting of harddrive for online finetuning
+- check flow of online finetuning
+
+23/4:
+-- find out why reconstrcution is worse during deployment then during offline test
+    - does odometry not track the target goal well enough
+- find out what is the advantage of online learning and filloing the repaly buffer  CHECK
+- retrieve the rewards from the rosbag now instead of recordings                    CHECK
+- Why do the models think that going backwards is getting it reward -> even if target reduces wrongly, why not forward then                                                         CHECK
+
+
+28/4:
+- look at reward function again
+- look at freshly trained things again
+- fix vel input in world model input.
+
+
+29/4:
+- check if orientation is 0,0 at start of deployment
+- next testing should be without smoothing                                      
+
+                        
 
 Suggestions for improvement of offline dreamer:
 - penalize the values of states that the World Model hasn't seen in the dataset. (vel too high)

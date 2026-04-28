@@ -16,25 +16,29 @@ import tempfile
 
 def main():
     # Paths
-    external_drive = Path("/media/maurits-heemskerk/69987a47-b840-4db7-9f8b-7cc05f14d09e3/checkpoints")
-    local_results_dir = Path("/home/maurits-heemskerk/Documents/Uni/Master_Thesis/dreamer_results_local")
+    external_drive = Path("/media/maurits-heemskerk/69987a47-b840-4db7-9f8b-7cc05f14d09e6/checkpoints")
+    local_results_dir = Path("/home/maurits-heemskerk/Documents/Uni/Master_Thesis/dreamer_results_local_noobs")
     script_path = local_results_dir.parent / "scripts" / "convert_checkpoint_to_float16.py"
     
     if not external_drive.exists():
         print(f"❌ External drive not found: {external_drive}")
         sys.exit(1)
     
-    # Find all checkpoint directories on external drive
-    checkpoint_dirs = sorted([d for d in external_drive.iterdir() if d.is_dir()])
-    
+    # Find all checkpoint directories on external drive, filter for agent types
+    agent_keywords = ["xlarge_agent", "large_agent", "medium_agent"]
+    checkpoint_dirs = sorted([
+        d for d in external_drive.iterdir()
+        if d.is_dir() and any(k in d.name for k in agent_keywords)
+    ])
+
     if not checkpoint_dirs:
-        print("❌ No checkpoint directories found on external drive!")
+        print("❌ No matching checkpoint directories found on external drive!")
         sys.exit(1)
-    
-    print(f"🔍 Found {len(checkpoint_dirs)} checkpoints on external drive\n")
-    
+
+    print(f"🔍 Found {len(checkpoint_dirs)} matching checkpoints on external drive\n")
+
     processed = 0
-    
+
     for i, ckpt_dir_external in enumerate(checkpoint_dirs, 1):
         run_name = ckpt_dir_external.name
         ckpt_file_external = ckpt_dir_external / "checkpoint.ckpt"

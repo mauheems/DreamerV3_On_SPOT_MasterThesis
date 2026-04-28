@@ -10,7 +10,10 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/launch', ['launch/dreamer_deployment.launch.py']),
+        ('share/' + package_name + '/launch', [
+            'launch/dreamer_deployment.launch.py',
+            'launch/dreamer_deployment_noobs.launch.py',
+        ]),
         ('share/' + package_name + '/config', ['config/params.yaml']),
         ('share/' + package_name + '/srv', ['srv/SetGoalWaypoint.srv']),
     ],
@@ -24,6 +27,7 @@ setup(
     entry_points={
         'console_scripts': [
             'dreamer_policy_node = dreamer_deployment.dreamer_policy_node:main',
+            'dreamer_policy_node_noobs = dreamer_deployment.dreamer_policy_node_noobs:main',
             'goal_command_client = dreamer_deployment.goal_command_client:main',
         ],
     },

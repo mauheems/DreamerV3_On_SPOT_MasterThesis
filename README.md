@@ -7,7 +7,7 @@
 
 ![Policy rollout in imagination](dreamer_SPOT_implementation/results/Video_1.gif)
 
-*Imagined trajectory rollout from the trained DreamerV3 actor-critic policy.*
+*Deployment of trained actor-critic policy trained completely offline in DreamerV3 latent world model.*
 
 ---
 

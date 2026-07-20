@@ -9,20 +9,13 @@
 ## 1. Clone the Repository
 
 ```bash
-git clone https://github.com/mauheems/Master-Thesis.git
-cd Master-Thesis
+git clone https://github.com/mauheems/DreamerV3_On_SPOT_MasterThesis.git
+cd DreamerV3_On_SPOT_MasterThesis
 ```
 
-## 2. Clone the Informed Dreamer Fork
+The repository includes the complete informed-dreamer codebase with all SPOT modifications integrated.
 
-The training code lives in a separate repo (fork of Informed Dreamer with SPOT modifications):
-
-```bash
-git clone -b noobs-dataset https://github.com/mauheems/Master_thesis_DAIC_code.git \
-    dreamer_SPOT_implementation/informed-dreamer
-```
-
-## 3. Python Environment
+## 2. Python Environment
 
 Create a Python 3.10 environment (the training code is pinned to 3.10):
 
@@ -37,7 +30,7 @@ pyenv virtualenv 3.10.13 dreamer-env
 pyenv activate dreamer-env
 ```
 
-## 4. Install Dependencies
+## 3. Install Dependencies
 
 ```bash
 cd dreamer_SPOT_implementation/informed-dreamer
@@ -52,7 +45,7 @@ pip install --upgrade "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-re
 pip install --upgrade "jax[cpu]"
 ```
 
-## 5. Verify Installation
+## 4. Verify Installation
 
 ```bash
 python -c "import dreamerv3; import jax; print('JAX devices:', jax.devices())"
@@ -64,7 +57,7 @@ python -c "import dreamerv3; import jax; print('JAX devices:', jax.devices())"
 
 ```bash
 cd dreamer_SPOT_implementation/informed-dreamer
-python dreamerv3/train.py \
+python dreamerv3/train_offline.py \
     --configs spot_noobs \
     --logdir /path/to/logdir \
     --offline_dir /path/to/hdf5_episodes
@@ -73,7 +66,7 @@ python dreamerv3/train.py \
 ### Visual variant (requires GPU)
 
 ```bash
-python dreamerv3/train.py \
+python dreamerv3/train_offline.py \
     --configs spot_informed \
     --logdir /path/to/logdir \
     --offline_dir /path/to/hdf5_episodes
@@ -86,7 +79,7 @@ Available configs (in `dreamerv3/configs.yaml`):
 
 ## Data
 
-Pre-collected episodes are not included in this repo (too large). See [DATA_COLLECTION.md](DATA_COLLECTION.md) for how to collect your own, or contact the author for access to the processed HDF5 files.
+Pre-collected episodes are not included in this repo (too large). For information on data collection, see the thesis paper (Chapter 3). To collect your own robot data or request access to processed HDF5 files, contact the author.
 
 Validate episodes before training:
 

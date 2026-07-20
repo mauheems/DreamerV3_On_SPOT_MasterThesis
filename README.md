@@ -129,8 +129,8 @@ See [docs/SETUP.md](docs/SETUP.md) for full installation instructions.
 
 ```bash
 # 1. Clone this repo
-git clone https://github.com/mauheems/Master-Thesis.git
-cd Master-Thesis
+git clone https://github.com/mauheems/DreamerV3_On_SPOT_MasterThesis.git
+cd DreamerV3_On_SPOT_MasterThesis
 
 # 2. Install dependencies
 cd dreamer_SPOT_implementation/informed-dreamer
@@ -142,14 +142,6 @@ python dreamerv3/train.py \
     --logdir /path/to/logdir \
     --offline_dir /path/to/hdf5_episodes
 ```
-
----
-
-## About Informed Dreamer Fork
-
-The original Informed Dreamer repository is maintained at: [gaspardlambrechts/informed-dreamer](https://github.com/gaspardlambrechts/informed-dreamer)
-
-I also maintain a fork at [mauheems/Master_thesis_DAIC_code](https://github.com/mauheems/Master_thesis_DAIC_code) (branch: `noobs-dataset`) with my SPOT modifications for reference.
 
 ---
 

@@ -60,23 +60,6 @@ The NoObs encoder is a small MLP (no CNN), making it fast to train on CPU. The v
 
 ---
 
-## Scripts
-
-### `analyze_replay_imagine.py`
-
-Analyses replay sampling statistics relative to episode boundaries and imagined rollout horizons.
-
-```bash
-python scripts/analyze_replay_imagine.py \
-    --data_dir /path/to/hdf5_episodes \
-    --batch_length 12 \
-    --samples 2000
-```
-
-Reports what fraction of sampled windows contain a real terminal within the imagined horizon — useful for understanding whether the agent's imagination reaches meaningful episode boundaries.
-
----
-
 ## Notebooks
 
 See [notebooks/README.md](notebooks/README.md) for individual notebook descriptions.

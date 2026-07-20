@@ -1,22 +1,166 @@
-# Master-Thesis
-Adaptive Gait control by means of Dreamer Algorithm
+# Autonomous Navigation for Boston Dynamics SPOT using DreamerV3
 
-This master thesis will try to implement dreamerv3 algorithm to let a SPOT quadruped robot make independent decisions on how to traverse terrain. 
+> Master's thesis — Maurits Heemskerk, 2026  
+> [📄 Read the thesis](Master-thesis-Maurits-Heemskerk.pdf)
 
-To simulate a simple version of real terrain we will be working inside of a closed environmenet with boxes and small terrain obstacles. We will have to collect verious data before training to counteract imagination drift and OOD.
+---
 
-To do:
-- collect 5-10 hours of data from random exploration to expert driven data
-- train a informed dreamerv3 world model from this action, information and observation space
-    - the observation space will be the frontcamera (pixels) and an obstacle map
-    - the information space will be pixels, obstacle map velocity and gait
-    - the action space will be velocity, yaw, and a gait parameter (1-4)
+![Policy rollout in imagination](dreamer_SPOT_implementation/results/Video_1.gif)
 
-- train an actor critic on this world model, hopefully offline will work since we will use a informed model to counteract imagination drift and OOD
-    - the reward function will include velocity, failed configurations, and if we make it from A to B
+*Imagined trajectory rollout from the trained DreamerV3 actor-critic policy.*
 
-- get results and graphs
-    - regular autowalk speed vs dreamerv3
-    - reward function graphs over time
-    - informed vs uninformed
-    - graph of correct trajectories
+---
+
+## Overview
+
+This thesis applies **model-based reinforcement learning** to autonomous navigation on the [Boston Dynamics SPOT](https://www.bostondynamics.com/products/spot) quadruped robot. The agent learns a world model of the robot's dynamics from offline data and uses it to train a navigation policy entirely in imagination — without interacting with the physical environment during training.
+
+The work builds on **[Informed Dreamer](https://github.com/gaspardlambrechts/informed-dreamer)** (Lambrechts et al., 2024), an extension of DreamerV3 for partially observable environments. On top of this framework, I contributed:
+
+- A **SPOT robot environment wrapper** for online and offline training
+- **Offline training pipeline** from real robot data (rosbag → HDF5 → training)
+- **Live deployment interface** for closed-loop policy execution on SPOT
+- **NoObs variant** — camera-free navigation using proprioceptive state only
+- Custom **reward functions** and **training configurations** for goal-directed walking
+
+---
+
+## Key Results
+
+| Variant | Description | Result |
+|---------|-------------|--------|
+| **NoObs** | Proprioception only (velocity, IMU, joint angles) | ✅ Converges to goal-directed navigation |
+| **Visual** | + RGB camera + terrain map | 🔬 Challenged by partial observability |
+
+The NoObs variant successfully learns goal-directed walking behaviour from offline demonstrations, demonstrating that meaningful locomotion policies can be acquired without camera input. See the [paper](Master-thesis-Maurits-Heemskerk.pdf) for full quantitative results.
+
+---
+
+## Repository Structure
+
+```
+.
+├── Master-thesis-Maurits-Heemskerk.pdf   # The thesis paper
+├── dreamer_SPOT_implementation/
+│   ├── informed-dreamer/                  # Fork: my SPOT modifications (see below)
+│   ├── notebooks/                         # Analysis & evaluation notebooks
+│   ├── scripts/                           # Standalone analysis scripts
+│   ├── configs/                           # Training configuration files
+│   ├── results/                           # GIF and generated figures
+│   └── requirements.txt                   # Python dependencies
+└── docs/
+    ├── SETUP.md                           # Installation instructions
+    └── DATA_COLLECTION.md                 # How robot data was collected
+```
+
+---
+
+## My Contributions to Informed Dreamer
+
+The core training code lives in a fork of informed-dreamer at **[mauheems/Master_thesis_DAIC_code](https://github.com/mauheems/Master_thesis_DAIC_code)** (branch: `noobs-dataset`).
+
+| File | Change | Description |
+|------|--------|-------------|
+| `dreamerv3/embodied/envs/spot.py` | Modified | SPOT gym environment wrapper — observation/action space, reward, reset |
+| `dreamerv3/embodied/envs/spot_live.py` | **New** | Live deployment interface for closed-loop control on the physical robot |
+| `dreamerv3/embodied/run/train_offline.py` | **New** | Offline training loop — trains world model from pre-collected HDF5 episodes |
+| `dreamerv3/train_online.py` | **New** | Online training entrypoint with SPOT-specific config and logging |
+| `dreamerv3/agent.py` | Modified | Reward function integration, SPOT-specific observation processing |
+| `dreamerv3/jaxagent.py` | Modified | Deployment-mode inference support |
+| `dreamerv3/configs.yaml` | Modified | SPOT training configs: `spot_noobs`, `spot_simple`, `spot_informed` variants |
+| `dreamerv3/train.py` | Modified | Entrypoint edits for SPOT datasets |
+| `validate_episodes.py` | **New** | Script to validate and inspect collected HDF5 episodes before training |
+
+---
+
+## NoObs vs Visual Observations
+
+A key design choice explored in this thesis is whether camera input is necessary for navigation:
+
+| | **NoObs** | **Visual** |
+|-|-----------|------------|
+| **Observations** | Velocity (vx, vy, yaw) + IMU + joint angles | + RGB camera + terrain map |
+| **State dimension** | ~11 scalars | + image tensors |
+| **Training speed** | Fast (CPU/small GPU) | Slower (requires GPU) |
+| **Deployment** | Lightweight, no vision pipeline | Requires camera stream |
+| **Result** | Converges reliably | More challenging due to partial observability |
+
+The NoObs variant isolates whether the world model can learn useful dynamics without visual input. It succeeded and is the main result of the thesis.
+
+---
+
+## Notebooks
+
+All notebooks are in `dreamer_SPOT_implementation/notebooks/`. Outputs have been stripped — run them by pointing to your checkpoint/data directories.
+
+| Notebook | Purpose |
+|----------|---------|
+| `exploration_data_collected.ipynb` | Inspect raw episode data: sensor readings, trajectory shape, data quality |
+| `reward_computation.ipynb` | Visualise reward signal per timestep; sensor observations alongside computed rewards |
+| `training_results_analysis.ipynb` | Compare training runs: config diffs, loss curves, metric grids across experiments |
+| `world_model_reconstruction.ipynb` | Evaluate posterior reconstruction — does the world model reconstruct what it observed? (Visual) |
+| `results_latentspace.ipynb` | t-SNE of posterior latent states coloured by velocity/distance/reward; cross-checkpoint interpretability |
+| `agent_critic_evaluation.ipynb` | Policy evaluation in imagination: does the actor control the agent meaningfully? (Visual) |
+| `agent_critic_evaluation_noobs.ipynb` | Same as above, but for the **NoObs** variant — no camera input |
+| `deployment_evaluation.ipynb` | Load `.npz` deployment recordings from the physical robot and compute evaluation metrics |
+
+> **NoObs notebooks** (`*_noobs.ipynb`) run the policy using only proprioceptive state, without camera or terrain observations.
+
+---
+
+## Quick Start
+
+See [docs/SETUP.md](docs/SETUP.md) for full installation instructions.
+
+```bash
+# 1. Clone this repo
+git clone https://github.com/mauheems/Master-Thesis.git
+cd Master-Thesis
+
+# 2. Clone the informed-dreamer fork
+git clone -b noobs-dataset https://github.com/mauheems/Master_thesis_DAIC_code.git \
+    dreamer_SPOT_implementation/informed-dreamer
+
+# 3. Install dependencies
+cd dreamer_SPOT_implementation/informed-dreamer
+pip install -e ./dreamerv3
+
+# 4. Train (offline, NoObs)
+python dreamerv3/train.py \
+    --configs spot_noobs \
+    --logdir /path/to/logdir \
+    --offline_dir /path/to/hdf5_episodes
+```
+
+---
+
+## Data Collection
+
+See [docs/DATA_COLLECTION.md](docs/DATA_COLLECTION.md) for a detailed description of how robot data was collected (teleoperation → ROS2 bag → HDF5 conversion → preprocessing).
+
+---
+
+## Citation & Attribution
+
+This work extends:
+
+```bibtex
+@article{lambrechts2024informed,
+    title={Informed {POMDP}: {L}everaging Additional Information in Model-Based {RL}},
+    author={Lambrechts, Gaspard and Bolland, Adrien and Ernst, Damien},
+    journal={Reinforcement Learning Journal},
+    volume={1}, issue={1}, year={2024}
+}
+
+@article{hafner2023dreamerv3,
+    title={Mastering Diverse Domains through World Models},
+    author={Hafner, Danijar and Pasukonis, Jurgis and Ba, Jimmy and Lillicrap, Timothy},
+    journal={arXiv preprint arXiv:2301.04104}, year={2023}
+}
+```
+
+---
+
+## License
+
+The original Informed Dreamer code is MIT licensed. My contributions in `dreamer_SPOT_implementation/` are also MIT licensed.

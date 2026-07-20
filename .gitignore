@@ -1,4 +1,20 @@
+# Informed-dreamer fork (tracked separately at mauheems/Master_thesis_DAIC_code)
 /dreamer_SPOT_implementation/informed-dreamer/
+
+# Local experiment results (large, not for publication)
+/dreamer_results_local
+/dreamer_results_local_noobs
+
+# Openbots backpack (university code, not for publication)
+openbots_backpack/
+
+# Generated notebook figures
+dreamer_SPOT_implementation/notebooks/figures/
+dreamer_SPOT_implementation/notebooks/*.png
+
+# HDF5 data files (too large for git)
+*.h5
+*.hdf5
 
 # Colcon artifacts
 install/

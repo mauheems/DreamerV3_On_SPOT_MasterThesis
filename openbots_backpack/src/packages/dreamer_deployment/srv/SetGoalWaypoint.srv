@@ -1,8 +1,0 @@
-# Set navigation goal in world (odom) frame.
-# The policy converts this internally to a relative 2D vector.
-
-float32 x     # Goal X position (world frame, metres)
-float32 y     # Goal Y position (world frame, metres)
----
-bool   success
-string message

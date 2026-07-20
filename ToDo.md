@@ -316,29 +316,242 @@ vragen:
 
 
 28/4:
-- look at reward function again
-- look at freshly trained things again
-- fix vel input in world model input.
+- look at reward function again             CHECK
+- look at freshly trained things again      CHECK
+- fix vel input in world model input.       CHECK
 
 
 29/4:
-- check if orientation is 0,0 at start of deployment
-- next testing should be without smoothing                                      
+- check if orientation is 0,0 at start of deployment            CHECK
+- next testing should be without smoothing                      CHECK
+- remember what the replay buffer actaully contains              CHECK
+    - increase randomization of target goal place on trajectory to see if this increases reward accuracy and stoppage when goal is reached.       
+- implement smoothng not by limiting jerk but by averaging the commands to reduce noise     CHECK
+- does the robot know how to stand still? is this included in data?                     CHECK
+- might need to actaully put high penalty using any command when reaching the goal      CHECK
+- fix deployment notebook for the many graphs it has.                                       
 
-                        
+- 10:58:    check observations after goal has been reach
+            check rewards after goal has been reached        
+- 11:03 : smoothing off
+-11:33 : new smoothing   
 
-Suggestions for improvement of offline dreamer:
-- penalize the values of states that the World Model hasn't seen in the dataset. (vel too high)
-- data augmentation
-- penalize action if its too far away from what the data did (conversatism)
-- since we are giving the goal position relative to the robot frame our position and orientation in world frame are redundant as observations and possible causing error for the networl
-- implement loss for decoded prior | decoded posterior instead of in latent space
 
-Suggestions for results:
-- to proof image/terrain as observations enable meaningful information. run the training without images and show performance drop.!!
-- to prove it has better policy performance we need to test in actual environment succes rate.
-    - policy with and without images/terrain
-    - policy and mask the images to see performance drop
-    - policy testen op andere ondergrond als foam
-- ablation to prove that physics consistency loss increases prior performance.
+30/4: check timing issues of deployment 
+
+6/5: 
+- check if continuation flag is given to deployment or not.   CHECK
+
+7/5:
+- look at training data from last runs                          CHECK
+- decide if we need continuation signal                         CHECK
+- fetch NEW DATA for standing still at the targetposition       CHECK
+- retrain WITH termiantion signal                               CHECK
+- fix container gpu access!!                                    CHECK
+- determine succes graphs for paper and set up notebook         CHECK
+
+8/5:
+- look if training inference is sereously lacking sending a correct target position and if higher hz helps. 
+    - now i think the rssm call i very slow live.
+- check new deployment observations
+- set up agent critic notebook for self set first observation
+
+
+12/5
+- set greenlight meeting and ask about defence data   CHECK
+- retrain with new rewards v6                           CHECK
+    - fix orientation
+    - no big out of radius penalty, keep distacne to goal penalty before and afte goal reached
+    - remove time penalty
+    - remove jerk penalty at goal radius
+- mail joris over vakantie 10 juli                      CHECK
+
+19/5:
 - 
+-
+
+19/5:
+- train with more data                                      CHECK
+- discuss contributions of paper
+- discuss results of paper and ask joris to check paper
+- show working policy
+
+21/5:
+paper:
+    - start training for actual result graphs and setup the sbatch arrays   CHECK
+    - make figures for replay buffer and imagination rollout explanation prior, posterior CHECK
+    - imagination rollout drift figure should continue further than trained on to show error compounding        CHECK
+
+22/5: 
+paper: 
+    - generate results graphs of imagination horizon ablation and rssm size ablation
+    - show regions in the latent space 2D graph
+    - one read-through to take out inconsistent terms and redundant wording    
+
+- record a long episode of 100 horizon to test horizon degredation. CHECK
+- record deployment bags of unsuccesful policies.                   CHECK
+- make picture of setup                                             CHECK
+
+25/5:
+- train again with orientation penalty                              CHECK
+- rewrite imagination results and experiments                       CHRCK
+- really look for ai written pieces. go through once                
+- add the current visuals 
+
+26/5:
+- finish the architecture diagram and matching text
+- SPOT dynamics figure
+- DO include RSSM size and imagination horizon but only to show that rssm size lowers loss but not mostly increases noise. and imagination horizon only influences the data distribution to end goal behaviour. 
+- find the missing figures 
+
+27/5:
+- find failure mode graphs and finish results text  CHECK
+    - bad posterior
+    - bad imag horizon
+    - cluttered projection with inserted deployment episode CHECK
+        - processed_data_NoObs_with_rewards_v4 with rewardsv4_A_dyn1_rep005_stoch32_05-07
+    - reward hacking: being at the end goal according to reconstruced observation despite velocity observations pushing it further out. getting reward because it thinks its staying at the end goal
+        - realtd: 1,2 CHECK
+        - rewardsv2 medium dyn rep 
+    - reward exploitation: going out of the target radius to get a new reward because our reward function rewards re entry when overshooting. we edited the reward function to transition back after overshoot
+        - rewardsv9_2026-05-25_10-37_S12 
+    - failure mode during actor critic training of staying at goal for to long shifting data distribution to onyl staying at end goal.
+        - rewardsv9_2026-05-25_10-35_S16_base CHECK
+
+- make trajectory graph with orientation angles to show orientation reward works as well.
+    - rewardsv9 S10 rosbag 0 succesful trajecotry       CHECK
+
+28/5:
+- finish discussion CHECK
+- make results trajectory graphs clean  CHECK
+- finish SPOT and projectiarchitecture figures and insert them into text CHECK
+- finish conclusion CHECK
+
+-  edit reward function CHECK
+
+29/5: 
+- check all figures again if there are better one's. dont mind the style too much for now.  CHECK
+- check whole paper for AI
+- shape the paper in overleaf, figures and formulas
+
+## To DO PAPER: ##
+- reconstruction and prediction losses need to be explained better ✅
+- maintain consistent terminology with reconstructed, decoded, predicted and imagined ✅
+- move augmented target position data to preprocessing, duh ✅
+- explain the future modes reward exploitation, reward hacking etcc ✅
+- where to explain KL divergence ✅
+- fix graphs that say the wrong terms like decoded, predicted, reconsructed etc. ✅
+- fix offset figure 5       ✅
+- check new section in results if that makes sense ✅
+- do our definitions of latent consistency and ...  actually contribute somewhere. ✅
+    - define imagination consistency and prior consistency ✅
+- what do we call a prior rollout without policy.  search " Because the actions stay the same in both rollouts, differences between the posterior reconstruction and prior rollout show inaccuracies in the learned latent dynamics and our"✅ 
+- do a full run while keeping in mind terms
+    - prior, posterior, imagined, decoded, reconstructed
+    - shorten world model architecture and check logic again 
+    - check all the comments again
+- check if 'latent state' needs to be changed to stochastic state. 
+    - latent state is actually det and stoch together.
+    - stoch state can be stoch latent state
+    - deter state is hidden state
+- think of title 
+- zoom in on figure 11
+- increase letter size architecture diagram and make text like 'enc' 'dec' 'h1' more contrast
+- figure 3 highlight the argument in the graph please
+- figure 10 should include extra region for counter lingering
+- align introduction with changes in paper
+- send diploma information
+- does every figure capton tell what rollout it is?
+- discussion on pre deployment framework should include actual predeployment analysis
+- do not define it as a pre-deployment framework. its just a 'pre-deployment analysis'
+- can we strengthen the dataset distribution claim somewhere because we do have this in the appendix
+- ask acces GPU cluster beyond 1st june
+- fix appendix graphs
+- check the appenndices references in text
+- appendix should include training curves instead of metrics
+- more details in future work.
+    - train world model and actor critic seperately
+
+- full read
+    - actor and critic function fix
+    - check orientation quaternion
+    - do we mention that our what succesful policy is linked to all the succesful graphs
+    - are the failure modes 
+    - move actor critic training failure mode to last probably
+        - we could be more specific to link back to the imagination consistency and latent conistency
+- check related work section
+- fix all the indents, figure location and formulas in the compiled paper 
+- check sources
+✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ 
+
+
+- discussion 
+- check turnitin AI
+
+- push code to github openbots autonavigation
+
+
+
+
+
+
+
+
+
+deployment rosbags good and bad:
+bad:
+    - rewardsv8 H25 overshoots a lot and comes back
+good:
+    - S10,S16 are quick and dont overshoot much.
+
+
+
+
+
+
+
+
+
+
+
+
+
+# graphs
+Here is a complete style ruleset based on everything we've established:
+
+---
+
+**Figure style rules for paper-ready matplotlib plots:**
+
+1. **No subplot titles** — use bold panel labels **(a)**, **(b)**, **(c)** as text annotations in the top-left corner of each subplot (`fontweight='bold'`, `fontsize=12`, `transform=ax.transAxes`, position `(0.02, 0.97)`, `va='top'`).
+
+2. **Axis label format: "Description (unit)"** — always "what it is" first, then unit in parentheses. Examples: `Time (s)`, `Goal position (m)`, `Velocity (m/s, rad/s)`, `Reward (per step)`, `Distance to goal (m)`. Never a bare unit like `m` alone.
+
+3. **Every subplot gets its own x-axis label** — do not use `sharex=True` and a single shared label. Each panel must be independently croppable.
+
+4. **Legend always `loc='upper right'`** — no exceptions unless the data physically sits in the top-right, in which case use `'upper left'`.
+
+5. **GT vs decoded line convention:**
+   - Ground truth / actual: solid line (`lw=2.0`), labelled `GT <name>` (e.g. `GT vx`, `GT reward`)
+   - Model reconstruction / decoded: dotted line (`ls=':'`, `lw=1.8`), same color as its GT counterpart, labelled `decoded <name>`
+   - GT and decoded of the same channel always share the same color
+
+6. **Color consistency** — use `plt.cm.tab10.colors` cycling by channel index, so the same channel is always the same color across GT and decoded. For single-channel plots (e.g. reward), use `color='C0'` explicitly for both lines.
+
+7. **Figure size** — use `figsize=(14, 10)` for 3-panel vertical figures, scaled proportionally for other layouts.
+
+8. **Grid** — always `ax.grid(True, alpha=0.3)`.
+
+9. **Spine style** — `axes.spines.top: False`, `axes.spines.right: False` (set globally via `plt.rcParams`).
+
+10. **Font size** — base `font.size: 11` via `rcParams`, legend `fontsize=8`, panel label `fontsize=12`.
+
+11. **No `fig.suptitle`** — the figure title belongs in the paper caption, not in the figure itself.
+
+12. **`plt.tight_layout()`** always called before `plt.show()`.
+
+---
+
+**Copy-paste prompt template:**
+
+> *Apply these figure style rules: no subplot titles — use bold (a)/(b)/(c) annotations at top-left instead. Y-axis labels follow "Description (unit)" format matching "Time (s)". Every subplot has its own x-axis label so panels can be cropped independently. Legends always upper right. Ground truth lines are solid lw=2, labelled "GT \<name\>"; decoded/reconstructed lines are dotted lw=1.8 in the same color, labelled "decoded \<name\>". Grid alpha=0.3. No suptitle. tight\_layout before show.*

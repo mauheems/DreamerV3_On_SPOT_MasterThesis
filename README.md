@@ -42,39 +42,39 @@ The NoObs variant successfully learns goal-directed walking behaviour from offli
 .
 ├── Master-thesis-Maurits-Heemskerk.pdf   # The thesis paper
 ├── dreamer_SPOT_implementation/
-│   ├── informed-dreamer/                 # Base codebase (Lambrechts et al., 2024)
-│   │                                     # ⭐ See my modifications below
+│   ├── informed-dreamer/                 # Base codebase (see Attribution below) + my SPOT modifications
 │   ├── Video_1.gif                       # Policy rollout demo
 │   ├── notebooks/                        # My analysis & evaluation notebooks
 │   ├── scripts/                          # My standalone analysis scripts
-│   ├── configs/                          # My training configurations
+│   ├── configs/                          # My training configuration files
 │   ├── requirements.txt                  # Dependencies
 │   └── README.md                         # Technical overview of my changes
 ├── docs/
 │   └── SETUP.md                          # Installation & training instructions
-└── .gitignore
+└── LICENSE.md                             # Full attribution for all code
 ```
 
 ---
 
 ## Attribution
 
-This repository includes the **[Informed Dreamer](https://github.com/gaspardlambrechts/informed-dreamer)** codebase (Lambrechts et al., 2024) as a foundation. All modifications, additions, and adaptations are clearly documented below.
+> **Important:** This repository contains third-party code that is **not my own work**. The attribution chain is:
 
-**My Contributions:**
-- SPOT robot environment integration
-- Offline training pipeline for robotics
-- Live deployment interface
-- NoObs variant (proprioceptive-only navigation)
-- Analysis notebooks and evaluation tools
+### 1. DreamerV3 — Hafner et al. (2023)
+The core world model framework. MIT License, Copyright © 2023 Danijar Hafner.
+- Paper: [Mastering Diverse Domains through World Models](https://arxiv.org/abs/2301.04104)
+- Repo: [danijar/dreamerv3](https://github.com/danijar/dreamerv3)
 
-See [dreamer_SPOT_implementation/README.md](dreamer_SPOT_implementation/README.md) for the complete technical breakdown of which files were modified.
+### 2. Informed Dreamer — Lambrechts, Bolland & Ernst (2024)
+Extends DreamerV3 for partially observable environments (POMDPs) using auxiliary information. **Includes the full DreamerV3 codebase** with modifications. MIT License.
+- Paper: [Informed POMDP: Leveraging Additional Information in Model-Based RL](https://rlj.cs.umass.edu/2024/papers/Paper68.html)
+- Repo: [gaspardlambrechts/informed-dreamer](https://github.com/gaspardlambrechts/informed-dreamer)
 
----
+### 3. My SPOT Adaptations — Maurits Heemskerk (2026)
+Extends Informed Dreamer with a physical robot integration for the Boston Dynamics SPOT. MIT License.
+- All new files and modifications are listed below and in [dreamer_SPOT_implementation/README.md](dreamer_SPOT_implementation/README.md)
 
-## My Contributions to Informed Dreamer
-
-**Note:** The full informed-dreamer codebase is included in this repo. Below are the key files I created or modified.
+See [LICENSE.md](LICENSE.md) for the full license details.
 |------|--------|-------------|
 | `dreamerv3/embodied/envs/spot.py` | Modified | SPOT gym environment wrapper — observation/action space, reward, reset |
 | `dreamerv3/embodied/envs/spot_live.py` | **New** | Live deployment interface for closed-loop control on the physical robot |
@@ -179,7 +179,3 @@ This work extends:
 ```
 
 ---
-
-## License
-
-The original Informed Dreamer code is MIT licensed. My contributions in `dreamer_SPOT_implementation/` are also MIT licensed.

@@ -2,8 +2,8 @@
 
 This folder contains the complete training codebase, analysis notebooks, configurations, and helper scripts for the SPOT robot navigation thesis.
 
-**Base Framework:** [Informed Dreamer](https://github.com/gaspardlambrechts/informed-dreamer) (Lambrechts et al., 2024)  
-**Note:** This repo includes the full informed-dreamer codebase with my modifications for SPOT robotics. See below for details on what was changed.
+**Base Framework:** [DreamerV3](https://github.com/danijar/dreamerv3) (Hafner et al., 2023) → extended by [Informed Dreamer](https://github.com/gaspardlambrechts/informed-dreamer) (Lambrechts et al., 2024) → extended by me for SPOT.  
+**Note:** This repo includes the full Informed Dreamer codebase (which itself includes DreamerV3 code) with my modifications on top. See [LICENSE.md](../LICENSE.md) for the full attribution chain.
 
 ---
 

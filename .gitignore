@@ -1,4 +1,10 @@
-# Informed-dreamer fork (tracked separately at mauheems/Master_thesis_DAIC_code)
+# Informed-dreamer build artifacts (generated, not source code)
+dreamer_SPOT_implementation/informed-dreamer/build/
+dreamer_SPOT_implementation/informed-dreamer/install/
+dreamer_SPOT_implementation/informed-dreamer/log/
+dreamer_SPOT_implementation/informed-dreamer/recorded_data/
+dreamer_SPOT_implementation/informed-dreamer/processed_data*/
+dreamer_SPOT_implementation/informed-dreamer/scores/
 
 # Local experiment results (large, not for publication)
 /dreamer_results_local

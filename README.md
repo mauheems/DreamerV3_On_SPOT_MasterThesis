@@ -5,9 +5,9 @@
 
 ---
 
-![Policy rollout in imagination](dreamer_SPOT_implementation/results/Video_1.gif)
+![Policy rollout in imagination](dreamer_SPOT_implementation/Video_1.gif)
 
-*Deployment of trained actor-critic policy trained completely offline in DreamerV3 latent world model.*
+*Imagined trajectory rollout from the trained DreamerV3 actor-critic policy.*
 
 ---
 
@@ -42,15 +42,14 @@ The NoObs variant successfully learns goal-directed walking behaviour from offli
 .
 ├── Master-thesis-Maurits-Heemskerk.pdf   # The thesis paper
 ├── dreamer_SPOT_implementation/
-│   ├── informed-dreamer/                  # Fork: my SPOT modifications (see below)
-│   ├── notebooks/                         # Analysis & evaluation notebooks
-│   ├── scripts/                           # Standalone analysis scripts
-│   ├── configs/                           # Training configuration files
-│   ├── results/                           # GIF and generated figures
-│   └── requirements.txt                   # Python dependencies
+│   ├── Video_1.gif                       # Policy rollout demo
+│   ├── notebooks/                        # Analysis & evaluation notebooks
+│   ├── scripts/                          # Standalone analysis scripts
+│   ├── configs/                          # Training configuration files
+│   ├── requirements.txt                  # Python dependencies
+│   └── README.md                         # Technical overview
 └── docs/
-    ├── SETUP.md                           # Installation instructions
-    └── DATA_COLLECTION.md                 # How robot data was collected
+    └── SETUP.md                          # Installation & training instructions
 ```
 
 ---
@@ -134,9 +133,22 @@ python dreamerv3/train.py \
 
 ---
 
-## Data Collection
+## About Informed Dreamer Fork
 
-See [docs/DATA_COLLECTION.md](docs/DATA_COLLECTION.md) for a detailed description of how robot data was collected (teleoperation → ROS2 bag → HDF5 conversion → preprocessing).
+The core training code lives in a separate fork: **[mauheems/Master_thesis_DAIC_code](https://github.com/mauheems/Master_thesis_DAIC_code)** (branch: `noobs-dataset`). This repo focuses on high-level docs and analysis notebooks. To use the training code:
+
+```bash
+git clone -b noobs-dataset https://github.com/mauheems/Master_thesis_DAIC_code.git \
+    dreamer_SPOT_implementation/informed-dreamer
+```
+
+Data collection details are included in the thesis paper (Chapter 3).
+
+---
+
+## Contributions Summary
+
+**See [dreamer_SPOT_implementation/README.md](dreamer_SPOT_implementation/README.md) for a detailed technical breakdown of which files in the informed-dreamer fork were modified.**
 
 ---
 

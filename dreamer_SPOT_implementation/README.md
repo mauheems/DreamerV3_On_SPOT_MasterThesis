@@ -10,12 +10,16 @@ The core **training code** lives in the informed-dreamer fork: [mauheems/Master_
 
 ```
 dreamer_SPOT_implementation/
-├── informed-dreamer/         # Fork of Informed Dreamer with SPOT modifications
+├── Video_1.gif               # Policy rollout demo GIF
+├── Master-thesis-Maurits-Heemskerk.pdf  # Thesis paper
 ├── notebooks/                # Jupyter notebooks for analysis and evaluation
 ├── scripts/                  # Standalone analysis scripts
-├── configs/                  # Auxiliary training configs (latent dim, horizon, etc.)
-├── results/                  # Video_1.gif and generated figures
-└── requirements.txt          # Python dependencies
+├── configs/                  # Training configuration files
+├── requirements.txt          # Python dependencies
+└── README.md                 # This file
+
+# Training code (in separate fork, clone with):
+# git clone -b noobs-dataset https://github.com/mauheems/Master_thesis_DAIC_code.git informed-dreamer
 ```
 
 ---

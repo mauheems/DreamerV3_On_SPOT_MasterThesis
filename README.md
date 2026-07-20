@@ -42,23 +42,39 @@ The NoObs variant successfully learns goal-directed walking behaviour from offli
 .
 ├── Master-thesis-Maurits-Heemskerk.pdf   # The thesis paper
 ├── dreamer_SPOT_implementation/
+│   ├── informed-dreamer/                 # Base codebase (Lambrechts et al., 2024)
+│   │                                     # ⭐ See my modifications below
 │   ├── Video_1.gif                       # Policy rollout demo
-│   ├── notebooks/                        # Analysis & evaluation notebooks
-│   ├── scripts/                          # Standalone analysis scripts
-│   ├── configs/                          # Training configuration files
-│   ├── requirements.txt                  # Python dependencies
-│   └── README.md                         # Technical overview
-└── docs/
-    └── SETUP.md                          # Installation & training instructions
+│   ├── notebooks/                        # My analysis & evaluation notebooks
+│   ├── scripts/                          # My standalone analysis scripts
+│   ├── configs/                          # My training configurations
+│   ├── requirements.txt                  # Dependencies
+│   └── README.md                         # Technical overview of my changes
+├── docs/
+│   └── SETUP.md                          # Installation & training instructions
+└── .gitignore
 ```
+
+---
+
+## Attribution
+
+This repository includes the **[Informed Dreamer](https://github.com/gaspardlambrechts/informed-dreamer)** codebase (Lambrechts et al., 2024) as a foundation. All modifications, additions, and adaptations are clearly documented below.
+
+**My Contributions:**
+- SPOT robot environment integration
+- Offline training pipeline for robotics
+- Live deployment interface
+- NoObs variant (proprioceptive-only navigation)
+- Analysis notebooks and evaluation tools
+
+See [dreamer_SPOT_implementation/README.md](dreamer_SPOT_implementation/README.md) for the complete technical breakdown of which files were modified.
 
 ---
 
 ## My Contributions to Informed Dreamer
 
-The core training code lives in a fork of informed-dreamer at **[mauheems/Master_thesis_DAIC_code](https://github.com/mauheems/Master_thesis_DAIC_code)** (branch: `noobs-dataset`).
-
-| File | Change | Description |
+**Note:** The full informed-dreamer codebase is included in this repo. Below are the key files I created or modified.
 |------|--------|-------------|
 | `dreamerv3/embodied/envs/spot.py` | Modified | SPOT gym environment wrapper — observation/action space, reward, reset |
 | `dreamerv3/embodied/envs/spot_live.py` | **New** | Live deployment interface for closed-loop control on the physical robot |
@@ -116,15 +132,11 @@ See [docs/SETUP.md](docs/SETUP.md) for full installation instructions.
 git clone https://github.com/mauheems/Master-Thesis.git
 cd Master-Thesis
 
-# 2. Clone the informed-dreamer fork
-git clone -b noobs-dataset https://github.com/mauheems/Master_thesis_DAIC_code.git \
-    dreamer_SPOT_implementation/informed-dreamer
-
-# 3. Install dependencies
+# 2. Install dependencies
 cd dreamer_SPOT_implementation/informed-dreamer
 pip install -e ./dreamerv3
 
-# 4. Train (offline, NoObs)
+# 3. Train (offline, NoObs)
 python dreamerv3/train.py \
     --configs spot_noobs \
     --logdir /path/to/logdir \
@@ -135,20 +147,15 @@ python dreamerv3/train.py \
 
 ## About Informed Dreamer Fork
 
-The core training code lives in a separate fork: **[mauheems/Master_thesis_DAIC_code](https://github.com/mauheems/Master_thesis_DAIC_code)** (branch: `noobs-dataset`). This repo focuses on high-level docs and analysis notebooks. To use the training code:
+The original Informed Dreamer repository is maintained at: [gaspardlambrechts/informed-dreamer](https://github.com/gaspardlambrechts/informed-dreamer)
 
-```bash
-git clone -b noobs-dataset https://github.com/mauheems/Master_thesis_DAIC_code.git \
-    dreamer_SPOT_implementation/informed-dreamer
-```
-
-Data collection details are included in the thesis paper (Chapter 3).
+I also maintain a fork at [mauheems/Master_thesis_DAIC_code](https://github.com/mauheems/Master_thesis_DAIC_code) (branch: `noobs-dataset`) with my SPOT modifications for reference.
 
 ---
 
 ## Contributions Summary
 
-**See [dreamer_SPOT_implementation/README.md](dreamer_SPOT_implementation/README.md) for a detailed technical breakdown of which files in the informed-dreamer fork were modified.**
+**See [dreamer_SPOT_implementation/README.md](dreamer_SPOT_implementation/README.md) for a detailed technical breakdown of which files in informed-dreamer were modified.**
 
 ---
 

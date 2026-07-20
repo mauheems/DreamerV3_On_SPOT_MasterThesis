@@ -1,8 +1,9 @@
 # DreamerV3 SPOT Implementation — Technical Overview
 
-This folder contains the analysis notebooks, configuration files, and helper scripts for the SPOT robot navigation thesis.
+This folder contains the complete training codebase, analysis notebooks, configurations, and helper scripts for the SPOT robot navigation thesis.
 
-The core **training code** lives in the informed-dreamer fork: [mauheems/Master_thesis_DAIC_code](https://github.com/mauheems/Master_thesis_DAIC_code) (branch `noobs-dataset`).
+**Base Framework:** [Informed Dreamer](https://github.com/gaspardlambrechts/informed-dreamer) (Lambrechts et al., 2024)  
+**Note:** This repo includes the full informed-dreamer codebase with my modifications for SPOT robotics. See below for details on what was changed.
 
 ---
 
@@ -10,23 +11,20 @@ The core **training code** lives in the informed-dreamer fork: [mauheems/Master_
 
 ```
 dreamer_SPOT_implementation/
+├── informed-dreamer/         # Base framework (Lambrechts et al.) + my SPOT modifications
 ├── Video_1.gif               # Policy rollout demo GIF
-├── Master-thesis-Maurits-Heemskerk.pdf  # Thesis paper
-├── notebooks/                # Jupyter notebooks for analysis and evaluation
-├── scripts/                  # Standalone analysis scripts
-├── configs/                  # Training configuration files
+├── notebooks/                # My analysis & evaluation notebooks
+├── scripts/                  # My standalone analysis scripts
+├── configs/                  # My training configurations
 ├── requirements.txt          # Python dependencies
 └── README.md                 # This file
-
-# Training code (in separate fork, clone with):
-# git clone -b noobs-dataset https://github.com/mauheems/Master_thesis_DAIC_code.git informed-dreamer
 ```
 
 ---
 
-## What Was Modified in Informed Dreamer
+## What I Modified in Informed Dreamer
 
-All changes are on the `noobs-dataset` branch of [mauheems/Master_thesis_DAIC_code](https://github.com/mauheems/Master_thesis_DAIC_code), on top of the original `a4ac0e5` import commit.
+All my changes are in `informed-dreamer/` and described below. This integrated version is included in this repo for complete portability.
 
 ### New Files
 

@@ -1,0 +1,3 @@
+source;share/dreamerv3/hook/pythonpath.ps1
+source;share/dreamerv3/hook/pythonpath.dsv
+source;share/dreamerv3/hook/pythonpath.sh

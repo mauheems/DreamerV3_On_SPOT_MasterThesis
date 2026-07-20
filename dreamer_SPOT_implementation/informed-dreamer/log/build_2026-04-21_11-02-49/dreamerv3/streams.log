@@ -1,0 +1,295 @@
+[1.397s] Invoking command in '/home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer': PYTHONPATH=/home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base build/dreamerv3 build --build-base /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build install --record /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/install.log --single-version-externally-managed
+[1.977s] running egg_info
+[1.978s] creating build/dreamerv3/dreamerv3.egg-info
+[1.978s] writing build/dreamerv3/dreamerv3.egg-info/PKG-INFO
+[1.978s] writing dependency_links to build/dreamerv3/dreamerv3.egg-info/dependency_links.txt
+[1.979s] writing requirements to build/dreamerv3/dreamerv3.egg-info/requires.txt
+[1.979s] writing top-level names to build/dreamerv3/dreamerv3.egg-info/top_level.txt
+[1.979s] writing manifest file 'build/dreamerv3/dreamerv3.egg-info/SOURCES.txt'
+[1.981s] package init file 'online_runs/__init__.py' not found (or not a regular file)
+[1.982s] package init file 'install/__init__.py' not found (or not a regular file)
+[1.982s] package init file 'build/__init__.py' not found (or not a regular file)
+[1.982s] package init file 'scores/__init__.py' not found (or not a regular file)
+[1.982s] package init file 'log/__init__.py' not found (or not a regular file)
+[1.982s] package init file 'processed_data_NoObs_with_rewards/__init__.py' not found (or not a regular file)
+[1.982s] package init file 'processed_data/__init__.py' not found (or not a regular file)
+[1.983s] package init file 'online_runs/frozen/__init__.py' not found (or not a regular file)
+[1.983s] package init file 'online_runs/frozen/replay/__init__.py' not found (or not a regular file)
+[1.983s] package init file 'install/dreamerv3/__init__.py' not found (or not a regular file)
+[1.983s] package init file 'install/dreamerv3/lib/__init__.py' not found (or not a regular file)
+[1.984s] package init file 'build/dreamerv3/__init__.py' not found (or not a regular file)
+[1.984s] package init file 'build/dreamerv3/prefix_override/__init__.py' not found (or not a regular file)
+[1.984s] package init file 'scores/data/__init__.py' not found (or not a regular file)
+[1.984s] package init file 'log/latest/__init__.py' not found (or not a regular file)
+[1.984s] package init file 'log/build_2026-04-21_11-02-49/__init__.py' not found (or not a regular file)
+[1.984s] package init file 'log/latest_build/__init__.py' not found (or not a regular file)
+[1.984s] package init file 'log/latest/dreamerv3/__init__.py' not found (or not a regular file)
+[1.984s] package init file 'log/build_2026-04-21_11-02-49/dreamerv3/__init__.py' not found (or not a regular file)
+[1.984s] package init file 'log/latest_build/dreamerv3/__init__.py' not found (or not a regular file)
+[1.985s] package init file 'dreamerv3/embodied/envs/__init__.py' not found (or not a regular file)
+[1.985s] package init file 'dreamerv3/embodied/scripts/__init__.py' not found (or not a regular file)
+[1.987s] reading manifest file 'build/dreamerv3/dreamerv3.egg-info/SOURCES.txt'
+[1.987s] reading manifest template 'MANIFEST.in'
+[1.987s] adding license file 'LICENSE'
+[1.989s] writing manifest file 'build/dreamerv3/dreamerv3.egg-info/SOURCES.txt'
+[1.989s] running build
+[1.989s] running build_py
+[1.990s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build
+[1.990s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib
+[1.990s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/scores
+[1.990s] copying scores/plot.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/scores
+[1.990s] copying scores/view.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/scores
+[1.991s] copying scores/clean.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/scores
+[1.992s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3
+[1.992s] copying dreamerv3/nets.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3
+[1.992s] copying dreamerv3/agent.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3
+[1.992s] copying dreamerv3/behaviors.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3
+[1.992s] copying dreamerv3/train_online.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3
+[1.993s] copying dreamerv3/__init__.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3
+[1.993s] copying dreamerv3/expl.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3
+[1.993s] copying dreamerv3/jaxagent.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3
+[1.994s] copying dreamerv3/jaxutils.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3
+[1.994s] copying dreamerv3/ninjax.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3
+[1.994s] copying dreamerv3/train.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3
+[1.996s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build
+[1.996s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build/dreamerv3
+[1.996s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build/dreamerv3/prefix_override
+[1.996s] copying build/dreamerv3/prefix_override/sitecustomize.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build/dreamerv3/prefix_override
+[1.997s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied
+[1.997s] copying dreamerv3/embodied/__init__.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied
+[1.998s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[1.998s] copying dreamerv3/embodied/envs/dummy.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[1.998s] copying dreamerv3/embodied/envs/dmc.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[1.999s] copying dreamerv3/embodied/envs/minecraft_minerl.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[1.999s] copying dreamerv3/embodied/envs/pinpad.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[2.000s] copying dreamerv3/embodied/envs/spot.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[2.000s] copying dreamerv3/embodied/envs/crafter.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[2.000s] copying dreamerv3/embodied/envs/loconav_quadruped.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[2.001s] copying dreamerv3/embodied/envs/dmlab.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[2.001s] copying dreamerv3/embodied/envs/robodesk.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[2.002s] copying dreamerv3/embodied/envs/from_gym.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[2.002s] copying dreamerv3/embodied/envs/minecraft.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[2.003s] copying dreamerv3/embodied/envs/from_dm.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[2.003s] copying dreamerv3/embodied/envs/spot_live.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[2.003s] copying dreamerv3/embodied/envs/loconav.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[2.004s] copying dreamerv3/embodied/envs/atari.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[2.004s] copying dreamerv3/embodied/envs/hike.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[2.005s] copying dreamerv3/embodied/envs/minecraft_base.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs
+[2.005s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay
+[2.006s] copying dreamerv3/embodied/replay/limiters.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay
+[2.006s] copying dreamerv3/embodied/replay/replays.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay
+[2.006s] copying dreamerv3/embodied/replay/saver.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay
+[2.007s] copying dreamerv3/embodied/replay/chunk.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay
+[2.007s] copying dreamerv3/embodied/replay/__init__.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay
+[2.008s] copying dreamerv3/embodied/replay/reverb.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay
+[2.008s] copying dreamerv3/embodied/replay/naive_chunks.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay
+[2.008s] copying dreamerv3/embodied/replay/generic.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay
+[2.009s] copying dreamerv3/embodied/replay/selectors.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay
+[2.009s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run
+[2.010s] copying dreamerv3/embodied/run/train_holdout.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run
+[2.010s] copying dreamerv3/embodied/run/train_eval.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run
+[2.010s] copying dreamerv3/embodied/run/train_offline.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run
+[2.011s] copying dreamerv3/embodied/run/__init__.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run
+[2.011s] copying dreamerv3/embodied/run/train_save.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run
+[2.011s] copying dreamerv3/embodied/run/parallel.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run
+[2.012s] copying dreamerv3/embodied/run/eval_only.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run
+[2.012s] copying dreamerv3/embodied/run/train.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run
+[2.012s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/scripts
+[2.012s] copying dreamerv3/embodied/scripts/plot.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/scripts
+[2.013s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.013s] copying dreamerv3/embodied/core/random.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.013s] copying dreamerv3/embodied/core/space.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.014s] copying dreamerv3/embodied/core/uuid.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.014s] copying dreamerv3/embodied/core/when.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.014s] copying dreamerv3/embodied/core/basics.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.015s] copying dreamerv3/embodied/core/flags.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.015s] copying dreamerv3/embodied/core/batcher.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.015s] copying dreamerv3/embodied/core/base.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.016s] copying dreamerv3/embodied/core/driver.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.016s] copying dreamerv3/embodied/core/timer.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.016s] copying dreamerv3/embodied/core/distr.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.017s] copying dreamerv3/embodied/core/logger.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.017s] copying dreamerv3/embodied/core/worker.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.018s] copying dreamerv3/embodied/core/__init__.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.018s] copying dreamerv3/embodied/core/counter.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.019s] copying dreamerv3/embodied/core/wrappers.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.019s] copying dreamerv3/embodied/core/checkpoint.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.019s] copying dreamerv3/embodied/core/config.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.020s] copying dreamerv3/embodied/core/parallel.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.020s] copying dreamerv3/embodied/core/metrics.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.021s] copying dreamerv3/embodied/core/path.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.021s] copying dreamerv3/embodied/core/batch.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core
+[2.023s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build/dreamerv3/dreamerv3.egg-info
+[2.023s] copying build/dreamerv3/dreamerv3.egg-info/PKG-INFO -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build/dreamerv3/dreamerv3.egg-info
+[2.024s] copying build/dreamerv3/dreamerv3.egg-info/SOURCES.txt -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build/dreamerv3/dreamerv3.egg-info
+[2.024s] copying build/dreamerv3/dreamerv3.egg-info/dependency_links.txt -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build/dreamerv3/dreamerv3.egg-info
+[2.024s] copying build/dreamerv3/dreamerv3.egg-info/requires.txt -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build/dreamerv3/dreamerv3.egg-info
+[2.025s] copying build/dreamerv3/dreamerv3.egg-info/top_level.txt -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build/dreamerv3/dreamerv3.egg-info
+[2.031s] running install
+[2.032s] running install_lib
+[2.034s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/build
+[2.034s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/build/dreamerv3
+[2.034s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/build/dreamerv3/prefix_override
+[2.035s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build/dreamerv3/prefix_override/sitecustomize.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/build/dreamerv3/prefix_override
+[2.035s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/build/dreamerv3/dreamerv3.egg-info
+[2.035s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build/dreamerv3/dreamerv3.egg-info/requires.txt -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/build/dreamerv3/dreamerv3.egg-info
+[2.036s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build/dreamerv3/dreamerv3.egg-info/SOURCES.txt -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/build/dreamerv3/dreamerv3.egg-info
+[2.037s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build/dreamerv3/dreamerv3.egg-info/PKG-INFO -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/build/dreamerv3/dreamerv3.egg-info
+[2.037s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build/dreamerv3/dreamerv3.egg-info/dependency_links.txt -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/build/dreamerv3/dreamerv3.egg-info
+[2.037s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/build/dreamerv3/dreamerv3.egg-info/top_level.txt -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/build/dreamerv3/dreamerv3.egg-info
+[2.038s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/scores
+[2.038s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/scores/plot.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/scores
+[2.038s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/scores/view.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/scores
+[2.038s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/scores/clean.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/scores
+[2.038s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3
+[2.039s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/nets.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3
+[2.039s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied
+[2.039s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.039s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/dummy.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.040s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/dmc.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.040s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/minecraft_minerl.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.040s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/pinpad.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.040s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/spot.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.040s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/crafter.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.041s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/loconav_quadruped.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.041s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/dmlab.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.041s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/robodesk.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.041s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/from_gym.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.041s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/minecraft.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.042s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/from_dm.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.042s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/spot_live.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.042s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/loconav.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.042s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/atari.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.042s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/hike.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.043s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/envs/minecraft_base.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs
+[2.043s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay
+[2.043s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay/limiters.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay
+[2.043s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay/replays.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay
+[2.043s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay/saver.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay
+[2.043s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay/chunk.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay
+[2.044s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay/__init__.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay
+[2.044s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay/reverb.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay
+[2.044s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay/naive_chunks.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay
+[2.044s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay/generic.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay
+[2.044s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/replay/selectors.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay
+[2.044s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run
+[2.044s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run/train_holdout.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run
+[2.044s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run/train_eval.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run
+[2.044s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run/train_offline.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run
+[2.045s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run/__init__.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run
+[2.045s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run/train_save.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run
+[2.045s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run/parallel.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run
+[2.045s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run/eval_only.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run
+[2.045s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/run/train.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run
+[2.045s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/scripts
+[2.045s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/scripts/plot.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/scripts
+[2.046s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/__init__.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied
+[2.046s] creating /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.046s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/random.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.046s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/space.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.047s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/uuid.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.047s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/when.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.047s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/basics.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.047s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/flags.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.047s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/batcher.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.047s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/base.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.047s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/driver.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.048s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/timer.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.048s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/distr.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.048s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/logger.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.048s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/worker.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.049s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/__init__.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.049s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/counter.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.049s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/wrappers.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.050s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/checkpoint.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.050s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/config.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.050s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/parallel.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.050s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/metrics.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.050s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/path.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.050s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/embodied/core/batch.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core
+[2.050s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/agent.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3
+[2.051s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/behaviors.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3
+[2.051s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/train_online.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3
+[2.051s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/__init__.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3
+[2.052s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/expl.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3
+[2.052s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/jaxagent.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3
+[2.052s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/jaxutils.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3
+[2.053s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/ninjax.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3
+[2.053s] copying /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build/lib/dreamerv3/train.py -> /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3
+[2.054s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/build/dreamerv3/prefix_override/sitecustomize.py to sitecustomize.cpython-310.pyc
+[2.055s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/scores/plot.py to plot.cpython-310.pyc
+[2.059s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/scores/view.py to view.cpython-310.pyc
+[2.059s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/scores/clean.py to clean.cpython-310.pyc
+[2.061s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/nets.py to nets.cpython-310.pyc
+[2.075s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/dummy.py to dummy.cpython-310.pyc
+[2.076s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/dmc.py to dmc.cpython-310.pyc
+[2.078s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/minecraft_minerl.py to minecraft_minerl.cpython-310.pyc
+[2.080s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/pinpad.py to pinpad.cpython-310.pyc
+[2.083s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/spot.py to spot.cpython-310.pyc
+[2.085s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/crafter.py to crafter.cpython-310.pyc
+[2.087s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/loconav_quadruped.py to loconav_quadruped.cpython-310.pyc
+[2.088s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/dmlab.py to dmlab.cpython-310.pyc
+[2.091s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/robodesk.py to robodesk.cpython-310.pyc
+[2.092s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/from_gym.py to from_gym.cpython-310.pyc
+[2.094s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/minecraft.py to minecraft.cpython-310.pyc
+[2.096s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/from_dm.py to from_dm.cpython-310.pyc
+[2.098s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/spot_live.py to spot_live.cpython-310.pyc
+[2.103s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/loconav.py to loconav.cpython-310.pyc
+[2.105s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/atari.py to atari.cpython-310.pyc
+[2.109s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/hike.py to hike.cpython-310.pyc
+[2.111s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/envs/minecraft_base.py to minecraft_base.cpython-310.pyc
+[2.114s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay/limiters.py to limiters.cpython-310.pyc
+[2.117s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay/replays.py to replays.cpython-310.pyc
+[2.118s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay/saver.py to saver.cpython-310.pyc
+[2.120s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay/chunk.py to chunk.cpython-310.pyc
+[2.122s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay/__init__.py to __init__.cpython-310.pyc
+[2.123s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay/reverb.py to reverb.cpython-310.pyc
+[2.125s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay/naive_chunks.py to naive_chunks.cpython-310.pyc
+[2.128s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay/generic.py to generic.cpython-310.pyc
+[2.131s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/replay/selectors.py to selectors.cpython-310.pyc
+[2.133s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run/train_holdout.py to train_holdout.cpython-310.pyc
+[2.136s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run/train_eval.py to train_eval.cpython-310.pyc
+[2.140s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run/train_offline.py to train_offline.cpython-310.pyc
+[2.144s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run/__init__.py to __init__.cpython-310.pyc
+[2.145s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run/train_save.py to train_save.cpython-310.pyc
+[2.149s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run/parallel.py to parallel.cpython-310.pyc
+[2.152s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run/eval_only.py to eval_only.cpython-310.pyc
+[2.154s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/run/train.py to train.cpython-310.pyc
+[2.156s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/scripts/plot.py to plot.cpython-310.pyc
+[2.166s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/__init__.py to __init__.cpython-310.pyc
+[2.166s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/random.py to random.cpython-310.pyc
+[2.167s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/space.py to space.cpython-310.pyc
+[2.169s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/uuid.py to uuid.cpython-310.pyc
+[2.170s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/when.py to when.cpython-310.pyc
+[2.172s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/basics.py to basics.cpython-310.pyc
+[2.174s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/flags.py to flags.cpython-310.pyc
+[2.176s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/batcher.py to batcher.cpython-310.pyc
+[2.177s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/base.py to base.cpython-310.pyc
+[2.179s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/driver.py to driver.cpython-310.pyc
+[2.181s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/timer.py to timer.cpython-310.pyc
+[2.182s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/distr.py to distr.cpython-310.pyc
+[2.186s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/logger.py to logger.cpython-310.pyc
+[2.190s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/worker.py to worker.cpython-310.pyc
+[2.193s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/__init__.py to __init__.cpython-310.pyc
+[2.194s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/counter.py to counter.cpython-310.pyc
+[2.195s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/wrappers.py to wrappers.cpython-310.pyc
+[2.199s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/checkpoint.py to checkpoint.cpython-310.pyc
+[2.201s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/config.py to config.cpython-310.pyc
+[2.204s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/parallel.py to parallel.cpython-310.pyc
+[2.205s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/metrics.py to metrics.cpython-310.pyc
+[2.206s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/path.py to path.cpython-310.pyc
+[2.209s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/embodied/core/batch.py to batch.cpython-310.pyc
+[2.210s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/agent.py to agent.cpython-310.pyc
+[2.220s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/behaviors.py to behaviors.cpython-310.pyc
+[2.221s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/train_online.py to train_online.cpython-310.pyc
+[2.225s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/__init__.py to __init__.cpython-310.pyc
+[2.226s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/expl.py to expl.cpython-310.pyc
+[2.228s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/jaxagent.py to jaxagent.cpython-310.pyc
+[2.235s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/jaxutils.py to jaxutils.cpython-310.pyc
+[2.246s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/ninjax.py to ninjax.cpython-310.pyc
+[2.253s] byte-compiling /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3/train.py to train.cpython-310.pyc
+[2.256s] running install_egg_info
+[2.261s] Copying build/dreamerv3/dreamerv3.egg-info to /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages/dreamerv3-1.5.0-py3.10.egg-info
+[2.262s] running install_scripts
+[2.300s] writing list of installed files to '/home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/install.log'
+[2.338s] Invoked command in '/home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer' returned '0': PYTHONPATH=/home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/install/dreamerv3/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base build/dreamerv3 build --build-base /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/build install --record /home/ob/openbots_ws/src/dreamer_SPOT_implementation/informed-dreamer/build/dreamerv3/install.log --single-version-externally-managed

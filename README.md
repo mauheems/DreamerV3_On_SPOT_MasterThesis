@@ -7,7 +7,7 @@
 
 ![Policy rollout in imagination](dreamer_SPOT_implementation/Video_1.gif)
 
-*Imagined trajectory rollout from the trained DreamerV3 actor-critic policy.*
+*Imagined trajectory rollout from the trained DreamerV3 actor-critic policy. SPOT corrects orientation towards the target position. It converges slowly and stays within the target radius by slowly rotating inside it. (due to orientation reward)*
 
 ---
 

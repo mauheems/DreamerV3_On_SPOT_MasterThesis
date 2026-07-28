@@ -76,7 +76,8 @@ Extends Informed Dreamer with a physical robot integration for the Boston Dynami
 
 See [LICENSE.md](LICENSE.md) for the full license details.
 
-|------|--------|-------------|
+|**File**| **Status** | **Description** |
+|--------|------------|-----------------|
 | `dreamerv3/embodied/envs/spot.py` | Modified | SPOT gym environment wrapper — observation/action space, reward, reset |
 | `dreamerv3/embodied/envs/spot_live.py` | **New** | Live deployment interface for closed-loop control on the physical robot |
 | `dreamerv3/embodied/run/train_offline.py` | **New** | Offline training loop — trains world model from pre-collected HDF5 episodes |
@@ -87,7 +88,6 @@ See [LICENSE.md](LICENSE.md) for the full license details.
 | `dreamerv3/train.py` | Modified | Entrypoint edits for SPOT datasets |
 | `validate_episodes.py` | **New** | Script to validate and inspect collected HDF5 episodes before training |
 
----
 
 ## NoObs vs Visual Observations
 

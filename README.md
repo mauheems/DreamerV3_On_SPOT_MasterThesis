@@ -75,6 +75,7 @@ Extends Informed Dreamer with a physical robot integration for the Boston Dynami
 - All new files and modifications are listed below and in [dreamer_SPOT_implementation/README.md](dreamer_SPOT_implementation/README.md)
 
 See [LICENSE.md](LICENSE.md) for the full license details.
+
 |------|--------|-------------|
 | `dreamerv3/embodied/envs/spot.py` | Modified | SPOT gym environment wrapper — observation/action space, reward, reset |
 | `dreamerv3/embodied/envs/spot_live.py` | **New** | Live deployment interface for closed-loop control on the physical robot |
